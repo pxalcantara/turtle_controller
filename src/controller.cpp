@@ -1,10 +1,13 @@
 #include <memory>
 #include <vector>
+#include <cmath>
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "keyboard_msgs/msg/key.hpp"
 #include "geometry_msgs/msg/twist.hpp"
+#include "geometry_msgs/msg/pose.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 #include "turtlesim/msg/pose.hpp"
 
 using std::placeholders::_1;
@@ -18,7 +21,7 @@ public:
         RCLCPP_INFO(this->get_logger(), "controller criado");
 
         command_sub = this->create_subscription<keyboard_msgs::msg::Key>("keyup", 10, std::bind(&Controller::commandCallback, this, _1));
-        pose_sub = this->create_subscription<turtlesim::msg::Pose>("/turtle1/pose", 10, std::bind(&Controller::poseCallback, this, _1));
+        pose_sub = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(&Controller::poseCallback, this, _1));
 
         cmd_vel_msg.angular.x = 0.0;
         cmd_vel_msg.angular.y = 0.0;
@@ -27,24 +30,42 @@ public:
         cmd_vel_msg.linear.y = 0.0;
         cmd_vel_msg.linear.z = 0.0;
 
+        initial_pose.position.x = 0.0;
+        initial_pose.position.y = 0.0;
+        initial_pose.position.z = 0.0;
+        initial_pose.orientation.x = 0.0;
+        initial_pose.orientation.y = 0.0;
+        initial_pose.orientation.z = 0.0;
+        initial_pose.orientation.w = 1.0;
+
         cmd_position_reference = 0;
         move = false;
+        MOVING_THRESHOLD = 0.01;
+        distance = 0.0;
 
     };
+
+    double calculate_distance(double initial_x, double initial_y, double final_x, double final_y) {
+        return std::sqrt(std::pow(final_x - initial_x, 2) + std::pow(final_y - initial_y, 2));
+    }
 
 private:
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub;
     rclcpp::Subscription<keyboard_msgs::msg::Key>::SharedPtr command_sub;
-    rclcpp::Subscription<turtlesim::msg::Pose>::SharedPtr pose_sub;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr pose_sub;
 
     std_msgs::msg::String control_msg;
     keyboard_msgs::msg::Key command_msg;
     geometry_msgs::msg::Twist cmd_vel_msg;
-    turtlesim::msg::Pose pose_msg;
+    geometry_msgs::msg::Pose initial_pose;
+    nav_msgs::msg::Odometry pose_msg;
     std::vector<uint16_t> commands;
     int cmd_position_reference;
     bool move;
+    float MOVING_THRESHOLD;
+    double distance;
+    
 
 
     void commandCallback(const keyboard_msgs::msg::Key::SharedPtr msg) {
@@ -58,21 +79,34 @@ private:
         
     }
 
-    void poseCallback(const turtlesim::msg::Pose::SharedPtr msg) {
-        if(msg->angular_velocity != 0 || msg->linear_velocity != 0) {
-            if(cmd_position_reference == commands.size()) {
-                commands.clear();
-                cmd_position_reference = 0;
-                move = false;
-            }    
+    void poseCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
+        if ( std::abs(msg->twist.twist.linear.x) > MOVING_THRESHOLD || std::abs(msg->twist.twist.angular.z) > MOVING_THRESHOLD ) {
+            move = true;
+        } else {
+            move = false;
+        }
+        
+        if (move) {
+            distance += calculate_distance(initial_pose.position.x, initial_pose.position.y, msg->pose.pose.position.x, msg->pose.pose.position.y);
+            // initial_pose.position.x = msg->pose.pose.position.x;
+            // initial_pose.position.y = msg->pose.pose.position.y;
+            initial_pose = msg->pose.pose;
+        }
+        RCLCPP_INFO_STREAM(this->get_logger(), "Distancia:" << distance << " moving" << move);
+        // if(msg->angular_velocity != 0 || msg->linear_velocity != 0) {
+        //     if(cmd_position_reference == commands.size()) {
+        //         commands.clear();
+        //         cmd_position_reference = 0;
+        //         move = false;
+        //     }    
 
-            return;
-        }
-        if(!commands.empty() && move) {
-            // RCLCPP_INFO(this->get_logger(), std::to_string(commands[cmd_position_reference]).c_str());
-            publishCommand(commands[cmd_position_reference]);
-            cmd_position_reference++;
-        }
+        //     return;
+        // }
+        // if(!commands.empty() && move) {
+        //     // RCLCPP_INFO(this->get_logger(), std::to_string(commands[cmd_position_reference]).c_str());
+        //     publishCommand(commands[cmd_position_reference]);
+        //     cmd_position_reference++;
+        // }
     }
 
     void publishCommand(const uint16_t &command){
