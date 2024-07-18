@@ -53,21 +53,21 @@ public:
         cmd_vel_msg.linear.x = 0.0;
         cmd_vel_msg.angular.z = 0.0;
         this->cmd_vel_pub->publish(cmd_vel_msg);
-    }
-
-    void move_forward() {
-        // cmd_vel_msg.linear.x = 0.2;
-        // cmd_vel_msg.angular.z = 0.0;
-        // this->cmd_vel_pub->publish(cmd_vel_msg);
-        move_forward(0.2);
+        cmd_position_reference++;
+        RCLCPP_INFO_STREAM(this->get_logger(), "STOOPING" );
+        rclcpp::sleep_for(std::chrono::seconds{2});
+        start_position = current_distance;
     }
 
     void move_forward(double speed) {
         move = true;
-        // start_position = current_distance;
         cmd_vel_msg.linear.x = speed;
         cmd_vel_msg.angular.z = 0.0;
         this->cmd_vel_pub->publish(cmd_vel_msg);
+    }
+
+    void move_forward() {
+        move_forward(0.2);
     }
 
 private:
@@ -91,35 +91,31 @@ private:
 
 
     void commandCallback(const keyboard_msgs::msg::Key::SharedPtr msg) {
-        RCLCPP_INFO(this->get_logger(), std::to_string(msg->code).c_str());
+        // RCLCPP_INFO(this->get_logger(), std::to_string(msg->code).c_str());
         if (msg->code == 13) {
             move = true;
             start_position = current_distance;
             return;
+        } else if (msg->code < 273 || msg->code > 276) {
+            return;
         }
+        RCLCPP_INFO_STREAM(this->get_logger(), "Command:" << msg->code << "cmd_size" << commands.size());
         
         commands.push_back(msg->code);
         
     }
 
     void poseCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
-        // if ( std::abs(msg->twist.twist.linear.x) > MOVING_THRESHOLD || std::abs(msg->twist.twist.angular.z) > MOVING_THRESHOLD || move) {
-        //     if (!move) {
-        //         start_position = current_distance;
-        //     }
-        //     move = true;
-
-        // } else {
-        //     move = false;
-        // }
+        if (cmd_position_reference == static_cast<int>(commands.size())) {
+            move = false;
+            cmd_position_reference = 0;
+            commands.clear();
+            return;
+        }
         
         if (move) {
             double moving_distance = std::abs(current_distance - start_position);
-            if (msg->twist.twist.linear.x < 0) {
-                move_forward(0.2);
-            } else {
-                move_forward(-0.1);
-            }
+            publishCommand(commands[cmd_position_reference]);
 
             if (moving_distance > 1) {
                 stop();
@@ -129,34 +125,21 @@ private:
             initial_pose = msg->pose.pose;
             RCLCPP_INFO_STREAM(this->get_logger(), "Distancia:" << current_distance << " delta: " << moving_distance << " init:" << start_position);
         }
-        // if(msg->angular_velocity != 0 || msg->linear_velocity != 0) {
-        //     if(cmd_position_reference == commands.size()) {
-        //         commands.clear();
-        //         cmd_position_reference = 0;
-        //         move = false;
-        //     }    
 
-        //     return;
-        // }
-        if(!commands.empty() && move) {
-            // RCLCPP_INFO(this->get_logger(), std::to_string(commands[cmd_position_reference]).c_str());
-            publishCommand(commands[cmd_position_reference]);
-            cmd_position_reference++;
-        }
     }
 
+
     void publishCommand(const uint16_t &command){
+        RCLCPP_INFO_STREAM(this->get_logger(), "Executing Command:" << command);
         switch (command)
         {
         case 273:
             this->control_msg.data = "Frente";
-            cmd_vel_msg.angular.z = 0.0;
-            cmd_vel_msg.linear.x = 1.0;
+            move_forward();
             break;
         case 274:
             this->control_msg.data = "Tras";
-            cmd_vel_msg.angular.z = 0.0;
-            cmd_vel_msg.linear.x = -1.0;
+            move_forward(-0.2);
             break;
         case 275: 
             this->control_msg.data = "Direita";
@@ -169,12 +152,12 @@ private:
             cmd_vel_msg.linear.x = 0.0;
             break;
         default:
-            return;
             break;
         }
         RCLCPP_INFO(this->get_logger(), "Comandos: '%s', '%s'", std::to_string(command).c_str(), control_msg.data.c_str());
-        this->publisher->publish(control_msg);
-        this->cmd_vel_pub -> publish(cmd_vel_msg);
+        RCLCPP_INFO_STREAM(this->get_logger(), "Cmd position:" << cmd_position_reference);
+        // this->publisher->publish(control_msg);
+        // this->cmd_vel_pub -> publish(cmd_vel_msg);
     }
 };
 
