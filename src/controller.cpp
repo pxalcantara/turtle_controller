@@ -7,11 +7,22 @@
 #include "keyboard_msgs/msg/key.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/pose.hpp"
+#include "geometry_msgs/msg/quaternion.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "turtlesim/msg/pose.hpp"
+#include "tf2/LinearMath/Matrix3x3.h"
+#include "tf2/LinearMath/Quaternion.h"
 
 using std::placeholders::_1;
 
+enum Direction {
+    FRONT = 273,
+    BACK = 274,
+    RIGHT = 275,
+    LEFT = 276,
+};
+
+//Ajustar modelo para corrigir sinal de velocidade com direcao de movimento
 class Controller : public rclcpp::Node
 {
 public:
@@ -42,7 +53,10 @@ public:
         move = false;
         MOVING_THRESHOLD = 0.01;
         current_distance = 0.0;
-
+        angular_tolerance = 0.02;
+        angular_setpoints = {0, 1.57, 3.14, 4.71};
+        angular_setpoint_index = 0;
+        first_cmd = true;
     };
 
     double calculate_distance(double initial_x, double initial_y, double final_x, double final_y) {
@@ -57,9 +71,10 @@ public:
         RCLCPP_INFO_STREAM(this->get_logger(), "STOOPING" );
         rclcpp::sleep_for(std::chrono::seconds{2});
         start_position = current_distance;
+        first_cmd = true;
     }
 
-    void move_forward(double speed) {
+    void move_forward(float speed) {
         move = true;
         cmd_vel_msg.linear.x = speed;
         cmd_vel_msg.angular.z = 0.0;
@@ -69,6 +84,63 @@ public:
     void move_forward() {
         move_forward(0.2);
     }
+
+    void rotate(float speed) {
+        move = true;
+        cmd_vel_msg.linear.x = 0.0;
+        cmd_vel_msg.angular.z = speed;
+        this->cmd_vel_pub->publish(cmd_vel_msg);
+    }
+
+    void rotate() {
+        rotate(0.2);
+    }
+
+    double get_orientation(const nav_msgs::msg::Odometry::SharedPtr odometry_msg) {
+        tf2::Quaternion quaternion(
+            odometry_msg->pose.pose.orientation.x,
+            odometry_msg->pose.pose.orientation.y,
+            odometry_msg->pose.pose.orientation.z,
+            odometry_msg->pose.pose.orientation.w);
+        double roll, pitch, yaw;
+        tf2::Matrix3x3(quaternion).getRPY(roll, pitch, yaw);
+        if (yaw < - 0.01) {
+            return yaw + 6.28;
+        } else {
+            return yaw;
+        }
+    }
+
+    void change_angular_setpoint(const bool clockwise) {
+        if (clockwise) {
+            angular_setpoint_index +=1;
+        } else {
+            angular_setpoint_index -=1;
+        }
+
+        if (angular_setpoint_index > 3) {
+            angular_setpoint_index = 0;
+        } else if (angular_setpoint_index < 0) {
+            angular_setpoint_index = 3;
+        }
+        RCLCPP_INFO_STREAM(this->get_logger(), "Setpoint:" << angular_setpoint_index << " / " << angular_setpoints[angular_setpoint_index]) ;
+    }
+
+    float get_angular_setpoint() {
+        return angular_setpoints[angular_setpoint_index];
+    }
+
+    void set_new_setpoint (const uint16_t &command) {
+        if (command != 275 && command != 276) {
+            return;
+        } else if (command == 275) {
+            change_angular_setpoint(false);
+        } else if (command == 276) {
+            change_angular_setpoint(true);
+        }
+        return;
+    }
+
 
 private:
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher;
@@ -87,19 +159,30 @@ private:
     float MOVING_THRESHOLD;
     double current_distance;
     double start_position;
+    float angular_tolerance;
+    double start_orientation;
+    double current_orientation;
+    std::vector<float> angular_setpoints;
+    int angular_setpoint_index;
+    bool first_cmd;
+    Direction moving_direction;
     
 
 
     void commandCallback(const keyboard_msgs::msg::Key::SharedPtr msg) {
         // RCLCPP_INFO(this->get_logger(), std::to_string(msg->code).c_str());
         if (msg->code == 13) {
+            if (commands.empty()) {
+                return;
+            }
             move = true;
             start_position = current_distance;
+            start_orientation = current_orientation;
             return;
         } else if (msg->code < 273 || msg->code > 276) {
             return;
         }
-        RCLCPP_INFO_STREAM(this->get_logger(), "Command:" << msg->code << "cmd_size" << commands.size());
+        RCLCPP_INFO_STREAM(this->get_logger(), "Command:" << msg->code << "cmd_size " << commands.size());
         
         commands.push_back(msg->code);
         
@@ -113,49 +196,66 @@ private:
             return;
         }
         
+            current_orientation = get_orientation(msg);
         if (move) {
+            if (first_cmd) {
+                set_new_setpoint(commands[cmd_position_reference]);
+                first_cmd = false;
+            }
+            RCLCPP_INFO_STREAM(this->get_logger(), "Orientation:" << current_orientation) ;
+            
             double moving_distance = std::abs(current_distance - start_position);
             publishCommand(commands[cmd_position_reference]);
 
-            if (moving_distance > 1) {
+
+            if (moving_distance > 1 && (moving_direction == FRONT || moving_direction == BACK )) {
                 stop();
                 return;
+            } else if ((moving_direction == RIGHT || moving_direction == LEFT )) {
+                if (current_orientation >= (get_angular_setpoint() - angular_tolerance) &&
+                    current_orientation <= (get_angular_setpoint() + angular_tolerance)) {
+                    stop();
+                    return;    
+                }
             }
+
             current_distance += calculate_distance(initial_pose.position.x, initial_pose.position.y, msg->pose.pose.position.x, msg->pose.pose.position.y);
             initial_pose = msg->pose.pose;
-            RCLCPP_INFO_STREAM(this->get_logger(), "Distancia:" << current_distance << " delta: " << moving_distance << " init:" << start_position);
+            // RCLCPP_INFO_STREAM(this->get_logger(), "Distancia:" << current_distance << " delta: " << moving_distance << " init:" << start_position);
         }
 
     }
 
 
     void publishCommand(const uint16_t &command){
-        RCLCPP_INFO_STREAM(this->get_logger(), "Executing Command:" << command);
+        RCLCPP_INFO_STREAM(this->get_logger(), "Executing Command:" << moving_direction);
         switch (command)
         {
-        case 273:
+        case FRONT:
             this->control_msg.data = "Frente";
+            moving_direction = FRONT;
             move_forward();
             break;
-        case 274:
+        case BACK:
             this->control_msg.data = "Tras";
+            moving_direction = BACK;
             move_forward(-0.2);
             break;
-        case 275: 
+        case RIGHT: 
             this->control_msg.data = "Direita";
-            cmd_vel_msg.angular.z = -1.55;
-            cmd_vel_msg.linear.x = 0.0;
+            moving_direction = RIGHT;
+            rotate();
             break;
-        case 276:
+        case LEFT:
             this->control_msg.data = "Esquerda";
-            cmd_vel_msg.angular.z = 1.55;
-            cmd_vel_msg.linear.x = 0.0;
+            moving_direction = LEFT;
+            rotate(-0.2);
             break;
         default:
             break;
         }
-        RCLCPP_INFO(this->get_logger(), "Comandos: '%s', '%s'", std::to_string(command).c_str(), control_msg.data.c_str());
-        RCLCPP_INFO_STREAM(this->get_logger(), "Cmd position:" << cmd_position_reference);
+        // RCLCPP_INFO(this->get_logger(), "Comandos: '%s', '%s'", std::to_string(command).c_str(), control_msg.data.c_str());
+        // RCLCPP_INFO_STREAM(this->get_logger(), "Cmd position:" << cmd_position_reference);
         // this->publisher->publish(control_msg);
         // this->cmd_vel_pub -> publish(cmd_vel_msg);
     }
