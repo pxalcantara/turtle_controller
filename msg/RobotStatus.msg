@@ -1,0 +1,6 @@
+bool moving
+float32 linear_velocity
+float32 angular_velocity
+float32 linear_distance
+float32 orientation
+float32 obstacle_distance

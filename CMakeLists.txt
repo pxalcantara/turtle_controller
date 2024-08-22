@@ -14,9 +14,14 @@ find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(turtlesim REQUIRED)
 find_package(tf2 REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/RobotStatus.msg"
+  "msg/RobotCmd.msg"
+  DEPENDENCIES  # Add packages that above messages depend on, in this case geometry_msgs for Sphere.msg
+)
+
 add_executable(controller src/controller.cpp)
 ament_target_dependencies(controller rclcpp std_msgs keyboard_msgs geometry_msgs nav_msgs turtlesim tf2)
 

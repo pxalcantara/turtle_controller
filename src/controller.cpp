@@ -29,7 +29,7 @@ public:
     Controller() : Node("move_controller") {
         publisher = this->create_publisher<std_msgs::msg::String>("commands", 10);
         cmd_vel_pub = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);    
-        RCLCPP_INFO(this->get_logger(), "controller criado");
+        // RCLCPP_INFO(this->get_logger(), "controller criado");
 
         command_sub = this->create_subscription<keyboard_msgs::msg::Key>("keyup", 10, std::bind(&Controller::commandCallback, this, _1));
         pose_sub = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(&Controller::poseCallback, this, _1));
@@ -51,12 +51,13 @@ public:
 
         cmd_position_reference = 0;
         move = false;
-        MOVING_THRESHOLD = 0.01;
         current_distance = 0.0;
         angular_tolerance = 0.02;
         angular_setpoints = {0, 1.57, 3.14, 4.71};
         angular_setpoint_index = 0;
         first_cmd = true;
+        linear_velocity = 0.2;
+        angular_velocity = 0.2;
     };
 
     double calculate_distance(double initial_x, double initial_y, double final_x, double final_y) {
@@ -82,7 +83,7 @@ public:
     }
 
     void move_forward() {
-        move_forward(0.2);
+        move_forward(linear_velocity);
     }
 
     void rotate(float speed) {
@@ -93,7 +94,7 @@ public:
     }
 
     void rotate() {
-        rotate(0.2);
+        rotate(angular_velocity);
     }
 
     double get_orientation(const nav_msgs::msg::Odometry::SharedPtr odometry_msg) {
@@ -111,6 +112,27 @@ public:
         }
     }
 
+    float get_angular_setpoint() {
+        return angular_setpoints[angular_setpoint_index];
+    }
+
+    void set_angular_velocity(const float value) {
+        this->angular_velocity = value;
+    }
+
+    float get_angular_velocity() {
+        return this->angular_velocity;
+    }
+
+    void set_linear_velocity(const float value) {
+        this->linear_velocity = value;
+    }
+
+    float get_linear_velocity() {
+        return this->linear_velocity;
+    }
+
+    // MAYBE PUT THESE FUCTIONS AS PRIVATE
     void change_angular_setpoint(const bool clockwise) {
         if (clockwise) {
             angular_setpoint_index +=1;
@@ -126,9 +148,6 @@ public:
         RCLCPP_INFO_STREAM(this->get_logger(), "Setpoint:" << angular_setpoint_index << " / " << angular_setpoints[angular_setpoint_index]) ;
     }
 
-    float get_angular_setpoint() {
-        return angular_setpoints[angular_setpoint_index];
-    }
 
     void set_new_setpoint (const uint16_t &command) {
         if (command != 275 && command != 276) {
@@ -156,7 +175,6 @@ private:
     std::vector<uint16_t> commands;
     int cmd_position_reference;
     bool move;
-    float MOVING_THRESHOLD;
     double current_distance;
     double start_position;
     float angular_tolerance;
@@ -166,6 +184,8 @@ private:
     int angular_setpoint_index;
     bool first_cmd;
     Direction moving_direction;
+    float linear_velocity;
+    float angular_velocity;
     
 
 
@@ -221,7 +241,7 @@ private:
 
             current_distance += calculate_distance(initial_pose.position.x, initial_pose.position.y, msg->pose.pose.position.x, msg->pose.pose.position.y);
             initial_pose = msg->pose.pose;
-            // RCLCPP_INFO_STREAM(this->get_logger(), "Distancia:" << current_distance << " delta: " << moving_distance << " init:" << start_position);
+            RCLCPP_INFO_STREAM(this->get_logger(), "Distancia:" << current_distance );
         }
 
     }
@@ -244,12 +264,12 @@ private:
         case RIGHT: 
             this->control_msg.data = "Direita";
             moving_direction = RIGHT;
-            rotate();
+            rotate(-0.2);
             break;
         case LEFT:
             this->control_msg.data = "Esquerda";
             moving_direction = LEFT;
-            rotate(-0.2);
+            rotate();
             break;
         default:
             break;
