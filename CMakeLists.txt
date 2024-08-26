@@ -21,14 +21,20 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/RobotCmd.msg"
   DEPENDENCIES  # Add packages that above messages depend on, in this case geometry_msgs for Sphere.msg
 )
+rosidl_get_typesupport_target(cpp_typesupport_target
+  ${PROJECT_NAME} rosidl_typesupport_cpp)
 
 add_executable(controller src/controller.cpp)
 ament_target_dependencies(controller rclcpp std_msgs keyboard_msgs geometry_msgs nav_msgs turtlesim tf2)
+target_link_libraries(controller "${cpp_typesupport_target}")
 
 install(TARGETS
   controller
   DESTINATION lib/${PROJECT_NAME}
  )
+
+ament_export_dependencies(rosidl_default_runtime)
+
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

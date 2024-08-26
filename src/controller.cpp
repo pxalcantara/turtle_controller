@@ -1,6 +1,7 @@
 #include <memory>
 #include <vector>
 #include <cmath>
+#include <chrono>
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
@@ -12,6 +13,8 @@
 #include "turtlesim/msg/pose.hpp"
 #include "tf2/LinearMath/Matrix3x3.h"
 #include "tf2/LinearMath/Quaternion.h"
+#include "turtle_controller/msg/robot_status.hpp"
+#include "turtle_controller/msg/robot_cmd.hpp"
 
 using std::placeholders::_1;
 
@@ -28,7 +31,9 @@ class Controller : public rclcpp::Node
 public:
     Controller() : Node("move_controller") {
         publisher = this->create_publisher<std_msgs::msg::String>("commands", 10);
-        cmd_vel_pub = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);    
+        cmd_vel_pub = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
+        status_pub = this->create_publisher<turtle_controller::msg::RobotStatus>("status", 10);
+        timer = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&Controller::status_callback, this));
         // RCLCPP_INFO(this->get_logger(), "controller criado");
 
         command_sub = this->create_subscription<keyboard_msgs::msg::Key>("keyup", 10, std::bind(&Controller::commandCallback, this, _1));
@@ -164,14 +169,17 @@ public:
 private:
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub;
+    rclcpp::Publisher<turtle_controller::msg::RobotStatus>::SharedPtr status_pub;
     rclcpp::Subscription<keyboard_msgs::msg::Key>::SharedPtr command_sub;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr pose_sub;
 
     std_msgs::msg::String control_msg;
-    keyboard_msgs::msg::Key command_msg;
     geometry_msgs::msg::Twist cmd_vel_msg;
+    turtle_controller::msg::RobotStatus status_msg;
+    keyboard_msgs::msg::Key command_msg;
     geometry_msgs::msg::Pose initial_pose;
     nav_msgs::msg::Odometry pose_msg;
+
     std::vector<uint16_t> commands;
     int cmd_position_reference;
     bool move;
@@ -186,6 +194,7 @@ private:
     Direction moving_direction;
     float linear_velocity;
     float angular_velocity;
+    rclcpp::TimerBase::SharedPtr timer;
     
 
 
@@ -278,6 +287,15 @@ private:
         // RCLCPP_INFO_STREAM(this->get_logger(), "Cmd position:" << cmd_position_reference);
         // this->publisher->publish(control_msg);
         // this->cmd_vel_pub -> publish(cmd_vel_msg);
+    }
+
+    void status_callback() {
+        status_msg.moving = this->move;
+        status_msg.angular_velocity = this->get_angular_velocity();
+        status_msg.linear_velocity = this->get_linear_velocity();
+        status_msg.linear_distance = this->current_distance;
+        status_msg.orientation = this->current_orientation;
+        status_pub->publish(status_msg);
     }
 };
 
