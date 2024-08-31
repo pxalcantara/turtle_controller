@@ -23,6 +23,14 @@ enum Direction {
     BACK = 274,
     RIGHT = 275,
     LEFT = 276,
+    UNKNOWN,
+};
+
+static const std::map<std::string, Direction> cmd_map = {
+    {"FRONT", FRONT},
+    {"BACK", BACK},
+    {"RIGHT", RIGHT},
+    {"LEFT", LEFT}
 };
 
 //Ajustar modelo para corrigir sinal de velocidade com direcao de movimento
@@ -33,11 +41,12 @@ public:
         publisher = this->create_publisher<std_msgs::msg::String>("commands", 10);
         cmd_vel_pub = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
         status_pub = this->create_publisher<turtle_controller::msg::RobotStatus>("status", 10);
-        timer = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&Controller::status_callback, this));
+        timer = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&Controller::status_timer_callback, this));
         // RCLCPP_INFO(this->get_logger(), "controller criado");
 
-        command_sub = this->create_subscription<keyboard_msgs::msg::Key>("keyup", 10, std::bind(&Controller::commandCallback, this, _1));
-        pose_sub = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(&Controller::poseCallback, this, _1));
+        command_sub = this->create_subscription<keyboard_msgs::msg::Key>("keyup", 10, std::bind(&Controller::command_callback, this, _1));
+        pose_sub = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(&Controller::pose_callback, this, _1));
+        robot_cmd_sub = this->create_subscription<turtle_controller::msg::RobotCmd>("/robot_cmd", 10, std::bind(&Controller::robot_cmd_callback, this, _1));
 
         cmd_vel_msg.angular.x = 0.0;
         cmd_vel_msg.angular.y = 0.0;
@@ -63,13 +72,15 @@ public:
         first_cmd = true;
         linear_velocity = 0.2;
         angular_velocity = 0.2;
+        linear_setpoint = 1;
+        angular_setpoint = angular_setpoints[1];
     };
 
     double calculate_distance(double initial_x, double initial_y, double final_x, double final_y) {
         return std::sqrt(std::pow(final_x - initial_x, 2) + std::pow(final_y - initial_y, 2));
     }
 
-    void nextCommand() {
+    void next_command() {
         cmd_vel_msg.linear.x = 0.0;
         cmd_vel_msg.angular.z = 0.0;
         this->cmd_vel_pub->publish(cmd_vel_msg);
@@ -128,7 +139,7 @@ public:
     }
 
     float get_angular_setpoint() {
-        return angular_setpoints[angular_setpoint_index];
+        return angular_setpoint;
     }
 
     void set_angular_velocity(const float value) {
@@ -139,12 +150,24 @@ public:
         return this->angular_velocity;
     }
 
+    void set_angular_setpoint(const float value) {
+        this->angular_setpoint = value;
+    }
+
     void set_linear_velocity(const float value) {
         this->linear_velocity = value;
     }
 
     float get_linear_velocity() {
         return this->linear_velocity;
+    }
+
+    void set_linear_setpoint(const float value) {
+        this->linear_setpoint = value;
+    }
+
+    float get_linear_setpoint() {
+        return this->linear_setpoint;
     }
 
     // MAYBE PUT THESE FUCTIONS AS PRIVATE
@@ -160,7 +183,8 @@ public:
         } else if (angular_setpoint_index < 0) {
             angular_setpoint_index = 3;
         }
-        RCLCPP_INFO_STREAM(this->get_logger(), "Setpoint:" << angular_setpoint_index << " / " << angular_setpoints[angular_setpoint_index]) ;
+        RCLCPP_INFO_STREAM(this->get_logger(), "Setpoint:" << angular_setpoint_index << " / " << angular_setpoints[angular_setpoint_index]);
+        set_angular_setpoint(angular_setpoints[angular_setpoint_index]);
     }
 
 
@@ -182,6 +206,7 @@ private:
     rclcpp::Publisher<turtle_controller::msg::RobotStatus>::SharedPtr status_pub;
     rclcpp::Subscription<keyboard_msgs::msg::Key>::SharedPtr command_sub;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr pose_sub;
+    rclcpp::Subscription<turtle_controller::msg::RobotCmd>::SharedPtr robot_cmd_sub;
 
     std_msgs::msg::String control_msg;
     geometry_msgs::msg::Twist cmd_vel_msg;
@@ -193,11 +218,13 @@ private:
     std::vector<uint16_t> commands;
     int cmd_position_reference;
     bool move;
+    float linear_setpoint;
     double current_distance;
     double start_position;
     float angular_tolerance;
     double start_orientation;
     double current_orientation;
+    float angular_setpoint;
     std::vector<float> angular_setpoints;
     int angular_setpoint_index;
     bool first_cmd;
@@ -205,18 +232,30 @@ private:
     float linear_velocity;
     float angular_velocity;
     rclcpp::TimerBase::SharedPtr timer;
-    
 
 
-    void commandCallback(const keyboard_msgs::msg::Key::SharedPtr msg) {
+    std::string to_upercase(std::string text) {
+        for (auto & letter: text) letter = toupper(letter);
+        return text;
+    }
+
+    void start_moving() {
+        move = true;
+        start_position = current_distance;
+        start_orientation = current_orientation;
+    }    
+
+
+    void command_callback(const keyboard_msgs::msg::Key::SharedPtr msg) {
         // RCLCPP_INFO(this->get_logger(), std::to_string(msg->code).c_str());
         if (msg->code == 13) {
             if (commands.empty()) {
                 return;
             }
-            move = true;
-            start_position = current_distance;
-            start_orientation = current_orientation;
+            start_moving();
+            // move = true;
+            // start_position = current_distance;
+            // start_orientation = current_orientation;
             return;
         } else if (msg->code < 273 || msg->code > 276) {
             return;
@@ -227,7 +266,7 @@ private:
         
     }
 
-    void poseCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
+    void pose_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
          
         current_orientation = get_orientation(msg);
         if (move) {
@@ -238,16 +277,16 @@ private:
             RCLCPP_INFO_STREAM(this->get_logger(), "Orientation:" << current_orientation) ;
             
             double moving_distance = std::abs(current_distance - start_position);
-            publishCommand(commands[cmd_position_reference]);
+            publish_command(commands[cmd_position_reference]);
 
 
-            if (moving_distance > 1 && (moving_direction == FRONT || moving_direction == BACK )) {
-                nextCommand();
+            if (moving_distance > this->linear_setpoint && (moving_direction == FRONT || moving_direction == BACK )) {
+                next_command();
                 return;
             } else if ((moving_direction == RIGHT || moving_direction == LEFT )) {
-                if (current_orientation >= (get_angular_setpoint() - angular_tolerance) &&
-                    current_orientation <= (get_angular_setpoint() + angular_tolerance)) {
-                    nextCommand();
+                if (current_orientation >= (angular_setpoint - angular_tolerance) &&
+                    current_orientation <= (angular_setpoint + angular_tolerance)) {
+                    next_command();
                     return;    
                 }
             }
@@ -259,8 +298,16 @@ private:
 
     }
 
+    void robot_cmd_callback(const turtle_controller::msg::RobotCmd::SharedPtr msg) {
+        RCLCPP_INFO_STREAM(this->get_logger(), "Comando:" << to_upercase(msg->direction) );
+        commands.clear();
+        Direction new_direction = cmd_map.at(to_upercase(msg->direction));
+        commands.push_back(new_direction);
+        start_moving();
+    }
 
-    void publishCommand(const uint16_t &command){
+    // Mudar o nome dessa funcao
+    void publish_command(const uint16_t &command){
         RCLCPP_INFO_STREAM(this->get_logger(), "Executing Command:" << moving_direction);
         switch (command)
         {
@@ -293,7 +340,7 @@ private:
         // this->cmd_vel_pub -> publish(cmd_vel_msg);
     }
 
-    void status_callback() {
+    void status_timer_callback() {
         status_msg.moving = this->move;
         status_msg.angular_velocity = this->get_angular_velocity();
         status_msg.linear_velocity = this->get_linear_velocity();
@@ -301,6 +348,7 @@ private:
         status_msg.orientation = this->current_orientation;
         status_pub->publish(status_msg);
     }
+
 };
 
 
