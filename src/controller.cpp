@@ -301,9 +301,26 @@ private:
     void robot_cmd_callback(const turtle_controller::msg::RobotCmd::SharedPtr msg) {
         RCLCPP_INFO_STREAM(this->get_logger(), "Comando:" << to_upercase(msg->direction) );
         commands.clear();
-        Direction new_direction = cmd_map.at(to_upercase(msg->direction));
-        commands.push_back(new_direction);
-        start_moving();
+        try
+        {
+            Direction new_direction = cmd_map.at(to_upercase(msg->direction));
+            commands.push_back(new_direction);
+            if (new_direction == FRONT || new_direction == BACK ) {
+                set_linear_velocity(msg->velocity);
+                set_linear_setpoint(msg->limit);
+            } else {
+                set_angular_setpoint(msg->limit);
+                set_angular_velocity(msg->velocity);
+            }
+            start_moving();
+        }
+        catch(const std::exception& e)
+        {
+            std::cerr << e.what() << '\n';
+            RCLCPP_ERROR_STREAM(this->get_logger(), "Invalid command: " << msg->direction );
+            return;
+        }
+        
     }
 
     // Mudar o nome dessa funcao
