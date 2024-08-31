@@ -69,15 +69,25 @@ public:
         return std::sqrt(std::pow(final_x - initial_x, 2) + std::pow(final_y - initial_y, 2));
     }
 
-    void stop() {
+    void nextCommand() {
         cmd_vel_msg.linear.x = 0.0;
         cmd_vel_msg.angular.z = 0.0;
         this->cmd_vel_pub->publish(cmd_vel_msg);
         cmd_position_reference++;
         RCLCPP_INFO_STREAM(this->get_logger(), "STOOPING" );
         rclcpp::sleep_for(std::chrono::seconds{2});
+        if (cmd_position_reference == static_cast<int>(commands.size())) {
+            stop();    
+            return;
+        }
         start_position = current_distance;
         first_cmd = true;
+    }
+    
+    void stop () {
+        move = false;
+        cmd_position_reference = 0;
+        commands.clear();
     }
 
     void move_forward(float speed) {
@@ -154,7 +164,7 @@ public:
     }
 
 
-    void set_new_setpoint (const uint16_t &command) {
+    void new_angular_setpoint (const uint16_t &command) {
         if (command != 275 && command != 276) {
             return;
         } else if (command == 275) {
@@ -218,17 +228,11 @@ private:
     }
 
     void poseCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
-        if (cmd_position_reference == static_cast<int>(commands.size())) {
-            move = false;
-            cmd_position_reference = 0;
-            commands.clear();
-            return;
-        }
-        
-            current_orientation = get_orientation(msg);
+         
+        current_orientation = get_orientation(msg);
         if (move) {
             if (first_cmd) {
-                set_new_setpoint(commands[cmd_position_reference]);
+                new_angular_setpoint(commands[cmd_position_reference]);
                 first_cmd = false;
             }
             RCLCPP_INFO_STREAM(this->get_logger(), "Orientation:" << current_orientation) ;
@@ -238,12 +242,12 @@ private:
 
 
             if (moving_distance > 1 && (moving_direction == FRONT || moving_direction == BACK )) {
-                stop();
+                nextCommand();
                 return;
             } else if ((moving_direction == RIGHT || moving_direction == LEFT )) {
                 if (current_orientation >= (get_angular_setpoint() - angular_tolerance) &&
                     current_orientation <= (get_angular_setpoint() + angular_tolerance)) {
-                    stop();
+                    nextCommand();
                     return;    
                 }
             }
