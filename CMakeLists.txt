@@ -24,14 +24,25 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 rosidl_get_typesupport_target(cpp_typesupport_target
   ${PROJECT_NAME} rosidl_typesupport_cpp)
 
-add_executable(controller src/controller.cpp)
-ament_target_dependencies(controller rclcpp std_msgs keyboard_msgs geometry_msgs nav_msgs turtlesim tf2)
-target_link_libraries(controller "${cpp_typesupport_target}")
+# Include Cpp "include" directory
+include_directories(include)
+
+add_executable(controller_server src/controller_server.cpp)
+ament_target_dependencies(controller_server rclcpp std_msgs keyboard_msgs geometry_msgs nav_msgs turtlesim tf2)
+target_link_libraries(controller_server "${cpp_typesupport_target}")
 
 install(TARGETS
-  controller
+controller_server
   DESTINATION lib/${PROJECT_NAME}
  )
+
+# Install Python modules
+# ament_python_install_package(${PROJECT_NAME})
+# Install Python executables
+install(PROGRAMS
+  scripts/controller_client.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 ament_export_dependencies(rosidl_default_runtime)
 
