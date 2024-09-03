@@ -23,6 +23,7 @@ enum Direction {
     BACK = 274,
     RIGHT = 275,
     LEFT = 276,
+    STOP = 0,
     UNKNOWN,
 };
 
@@ -30,8 +31,12 @@ static const std::map<std::string, Direction> cmd_map = {
     {"FRONT", FRONT},
     {"BACK", BACK},
     {"RIGHT", RIGHT},
-    {"LEFT", LEFT}
+    {"LEFT", LEFT},
+    {"STOP", STOP}
 };
+
+const float UNLIMITED = 10000.0;
+
 
 //Ajustar modelo para corrigir sinal de velocidade com direcao de movimento
 class Controller : public rclcpp::Node
@@ -85,7 +90,7 @@ public:
         cmd_vel_msg.angular.z = 0.0;
         this->cmd_vel_pub->publish(cmd_vel_msg);
         cmd_position_reference++;
-        RCLCPP_INFO_STREAM(this->get_logger(), "STOOPING" );
+        RCLCPP_INFO_STREAM(this->get_logger(), "Next Command" );
         rclcpp::sleep_for(std::chrono::seconds{2});
         if (cmd_position_reference == static_cast<int>(commands.size())) {
             stop();    
@@ -99,6 +104,10 @@ public:
         move = false;
         cmd_position_reference = 0;
         commands.clear();
+        cmd_vel_msg.linear.x = 0.0;
+        cmd_vel_msg.angular.z = 0.0;
+        this->cmd_vel_pub->publish(cmd_vel_msg);
+        RCLCPP_INFO_STREAM(this->get_logger(), "Stooping" );
     }
 
     void move_forward(float speed) {
@@ -253,9 +262,6 @@ private:
                 return;
             }
             start_moving();
-            // move = true;
-            // start_position = current_distance;
-            // start_orientation = current_orientation;
             return;
         } else if (msg->code < 273 || msg->code > 276) {
             return;
@@ -301,21 +307,31 @@ private:
     void robot_cmd_callback(const turtle_controller::msg::RobotCmd::SharedPtr msg) {
         RCLCPP_INFO_STREAM(this->get_logger(), "Comando:" << to_upercase(msg->direction) );
         commands.clear();
-        try
-        {
+        if (msg->velocity <= 0) {
+            RCLCPP_ERROR_STREAM(this->get_logger(), "Velocity should be greater than 0, velocity: " << msg->velocity );
+            return;
+        }
+        
+        try {
             Direction new_direction = cmd_map.at(to_upercase(msg->direction));
+            if (new_direction == STOP) {
+                stop();
+                return;
+            }
             commands.push_back(new_direction);
             if (new_direction == FRONT || new_direction == BACK ) {
                 set_linear_velocity(msg->velocity);
-                set_linear_setpoint(msg->limit);
+                if (msg->limit < 0 ) {
+                    set_linear_setpoint(UNLIMITED);    
+                } else {
+                    set_linear_setpoint(msg->limit);
+                }
             } else {
                 set_angular_setpoint(msg->limit);
                 set_angular_velocity(msg->velocity);
             }
             start_moving();
-        }
-        catch(const std::exception& e)
-        {
+        } catch(const std::exception& e) {
             std::cerr << e.what() << '\n';
             RCLCPP_ERROR_STREAM(this->get_logger(), "Invalid command: " << msg->direction );
             return;
