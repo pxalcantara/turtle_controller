@@ -102,6 +102,7 @@ public:
     
     void stop () {
         move = false;
+        first_cmd = true;
         cmd_position_reference = 0;
         commands.clear();
         cmd_vel_msg.linear.x = 0.0;
@@ -305,8 +306,11 @@ private:
     }
 
     void robot_cmd_callback(const turtle_controller::msg::RobotCmd::SharedPtr msg) {
-        RCLCPP_INFO_STREAM(this->get_logger(), "Comando:" << to_upercase(msg->direction) );
-        commands.clear();
+        // RCLCPP_INFO_STREAM(this->get_logger(), "Comando:" << to_upercase(msg->direction) );
+        if (!first_cmd) {
+            return;
+        } 
+
         if (msg->velocity <= 0) {
             RCLCPP_ERROR_STREAM(this->get_logger(), "Velocity should be greater than 0, velocity: " << msg->velocity );
             return;
@@ -314,8 +318,12 @@ private:
         
         try {
             Direction new_direction = cmd_map.at(to_upercase(msg->direction));
+            commands.clear();
             if (new_direction == STOP) {
                 stop();
+                return;
+            } else if ((new_direction == LEFT || new_direction == RIGHT) && msg->limit <= 0) {
+                RCLCPP_ERROR_STREAM(this->get_logger(), "For LEFT and RIGHT direction, limit can not be negative, limit:" << msg->limit);
                 return;
             }
             commands.push_back(new_direction);
@@ -327,8 +335,8 @@ private:
                     set_linear_setpoint(msg->limit);
                 }
             } else {
-                set_angular_setpoint(msg->limit);
                 set_angular_velocity(msg->velocity);
+                set_angular_setpoint(msg->limit);
             }
             start_moving();
         } catch(const std::exception& e) {
