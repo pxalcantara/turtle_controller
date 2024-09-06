@@ -10,6 +10,7 @@
 #include "geometry_msgs/msg/pose.hpp"
 #include "geometry_msgs/msg/quaternion.hpp"
 #include "nav_msgs/msg/odometry.hpp"
+#include "sensor_msgs/msg/laser_scan.hpp"
 #include "turtlesim/msg/pose.hpp"
 #include "tf2/LinearMath/Matrix3x3.h"
 #include "tf2/LinearMath/Quaternion.h"
@@ -17,6 +18,8 @@
 #include "turtle_controller/msg/robot_cmd.hpp"
 
 using std::placeholders::_1;
+
+const float UNLIMITED = 10000.0;
 
 enum Direction {
     FRONT = 273,
@@ -35,7 +38,11 @@ static const std::map<std::string, Direction> cmd_map = {
     {"STOP", STOP}
 };
 
-const float UNLIMITED = 10000.0;
+struct LaserScanInfo {
+    float angle_min;
+    float angle_max;
+    float angle_increment;
+}
 
 
 //Ajustar modelo para corrigir sinal de velocidade com direcao de movimento
@@ -43,15 +50,15 @@ class Controller : public rclcpp::Node
 {
 public:
     Controller() : Node("move_controller") {
-        publisher = this->create_publisher<std_msgs::msg::String>("commands", 10);
         cmd_vel_pub = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
-        status_pub = this->create_publisher<turtle_controller::msg::RobotStatus>("status", 10);
+        status_pub = this->create_publisher<turtle_controller::msg::RobotStatus>("/robot_status", 10);
         timer = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&Controller::status_timer_callback, this));
         // RCLCPP_INFO(this->get_logger(), "controller criado");
 
         command_sub = this->create_subscription<keyboard_msgs::msg::Key>("keyup", 10, std::bind(&Controller::command_callback, this, _1));
         pose_sub = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(&Controller::pose_callback, this, _1));
         robot_cmd_sub = this->create_subscription<turtle_controller::msg::RobotCmd>("/robot_cmd", 10, std::bind(&Controller::robot_cmd_callback, this, _1));
+        laser_scan_sub = this->create_subscription<sensor_msgs::msg::LaserScan>("/scan", 10, std::bind(&Controller::laser_scan_callback, this, _1));
 
         cmd_vel_msg.angular.x = 0.0;
         cmd_vel_msg.angular.y = 0.0;
@@ -211,11 +218,11 @@ public:
 
 
 private:
-    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub;
     rclcpp::Publisher<turtle_controller::msg::RobotStatus>::SharedPtr status_pub;
     rclcpp::Subscription<keyboard_msgs::msg::Key>::SharedPtr command_sub;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr pose_sub;
+    rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr laser_scan_sub;
     rclcpp::Subscription<turtle_controller::msg::RobotCmd>::SharedPtr robot_cmd_sub;
 
     std_msgs::msg::String control_msg;
@@ -253,7 +260,12 @@ private:
         move = true;
         start_position = current_distance;
         start_orientation = current_orientation;
-    }    
+    }
+
+
+    float get_sector_mean_range(const float sector_position, const float sector_width) {
+
+    }
 
 
     void command_callback(const keyboard_msgs::msg::Key::SharedPtr msg) {
@@ -347,6 +359,10 @@ private:
         
     }
 
+    void laser_scan_callback (const sensor_msgs::msg::LaserScan::SharedPtr msg) {
+        RCLCPP_INFO_STREAM(this->get_logger(), "Scan" << );
+    }
+
     // Mudar o nome dessa funcao
     void publish_command(const uint16_t &command){
         RCLCPP_INFO_STREAM(this->get_logger(), "Executing Command:" << moving_direction);
@@ -375,10 +391,6 @@ private:
         default:
             break;
         }
-        // RCLCPP_INFO(this->get_logger(), "Comandos: '%s', '%s'", std::to_string(command).c_str(), control_msg.data.c_str());
-        // RCLCPP_INFO_STREAM(this->get_logger(), "Cmd position:" << cmd_position_reference);
-        // this->publisher->publish(control_msg);
-        // this->cmd_vel_pub -> publish(cmd_vel_msg);
     }
 
     void status_timer_callback() {
@@ -389,6 +401,8 @@ private:
         status_msg.orientation = this->current_orientation;
         status_pub->publish(status_msg);
     }
+
+    
 
 };
 

@@ -12,6 +12,7 @@ find_package(std_msgs REQUIRED)
 find_package(keyboard_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(turtlesim REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
@@ -28,7 +29,7 @@ rosidl_get_typesupport_target(cpp_typesupport_target
 include_directories(include)
 
 add_executable(controller_server src/controller_server.cpp)
-ament_target_dependencies(controller_server rclcpp std_msgs keyboard_msgs geometry_msgs nav_msgs turtlesim tf2)
+ament_target_dependencies(controller_server rclcpp std_msgs keyboard_msgs geometry_msgs nav_msgs turtlesim tf2 sensor_msgs)
 target_link_libraries(controller_server "${cpp_typesupport_target}")
 
 install(TARGETS
