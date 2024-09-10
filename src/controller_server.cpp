@@ -2,6 +2,7 @@
 #include <vector>
 #include <cmath>
 #include <chrono>
+#include <numeric>
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
@@ -42,7 +43,7 @@ struct LaserScanInfo {
     float angle_min;
     float angle_max;
     float angle_increment;
-}
+};
 
 
 //Ajustar modelo para corrigir sinal de velocidade com direcao de movimento
@@ -249,6 +250,7 @@ private:
     float linear_velocity;
     float angular_velocity;
     rclcpp::TimerBase::SharedPtr timer;
+    LaserScanInfo laser_info;
 
 
     std::string to_upercase(std::string text) {
@@ -262,9 +264,30 @@ private:
         start_orientation = current_orientation;
     }
 
+    // center_position and sector_width in radians
+    std::vector<float> get_sector_range(const float sector_center_position, const float sector_width, const std::vector<float>& range) {
+        const float start_angle = sector_center_position - (sector_width/2);
+        const float end_angle = sector_center_position + (sector_width/2);
 
-    float get_sector_mean_range(const float sector_position, const float sector_width) {
+        int start_index = static_cast<int>((start_angle - laser_info.angle_min ) / laser_info.angle_increment);
+        int end_index = static_cast<int>((end_angle - laser_info.angle_min) / laser_info.angle_increment);
+        std::vector<float> sector_range;
 
+        for (int i = start_index; i <= end_index; ++i) {
+            sector_range.push_back(range[i]);
+
+            // Verifique se o range é válido (não infinito ou NaN)
+            // if (std::isfinite(range)) {
+            //     RCLCPP_INFO(this->get_logger(), "Range at index %d: %f meters", i, range);
+            // }
+        }
+        return sector_range;
+    }
+
+    float get_sector_range_mean(const std::vector<float>& range_sector) {
+        float sum = std::accumulate(range_sector.begin(), range_sector.end(), 0.0f);
+
+        return sum / range_sector.size();        
     }
 
 
@@ -360,7 +383,10 @@ private:
     }
 
     void laser_scan_callback (const sensor_msgs::msg::LaserScan::SharedPtr msg) {
-        RCLCPP_INFO_STREAM(this->get_logger(), "Scan" << );
+        RCLCPP_INFO_STREAM(this->get_logger(), "Scan" << msg);
+        laser_info.angle_increment = msg->angle_increment;
+        laser_info.angle_max = msg->angle_max;
+        laser_info.angle_min = msg->angle_min;
     }
 
     // Mudar o nome dessa funcao
@@ -399,6 +425,7 @@ private:
         status_msg.linear_velocity = this->get_linear_velocity();
         status_msg.linear_distance = this->current_distance;
         status_msg.orientation = this->current_orientation;
+        status_msg.obstacle_distance.front = 2.0;
         status_pub->publish(status_msg);
     }
 

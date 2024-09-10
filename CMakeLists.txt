@@ -20,6 +20,7 @@ find_package(rosidl_default_generators REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/RobotStatus.msg"
   "msg/RobotCmd.msg"
+  "msg/DirectionalDistance.msg"
   DEPENDENCIES  # Add packages that above messages depend on, in this case geometry_msgs for Sphere.msg
 )
 rosidl_get_typesupport_target(cpp_typesupport_target
