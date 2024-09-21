@@ -93,6 +93,8 @@ public:
     float get_sector_range_mean(const std::vector<float>& range_sector);
 
     void set_laser_info(const LaserScanInfo & laser_parameters);
+    
+    LaserScanInfo get_laser_info();
 
 private:
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub;

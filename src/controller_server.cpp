@@ -195,10 +195,14 @@ float Controller::get_sector_range_mean(const std::vector<float>& range_sector) 
     return sum / range_sector.size();        
 }
 
-void Controller::set_laser_info(const LaserScanInfo & laser_parameters) {
+void Controller::set_laser_info(const LaserScanInfo& laser_parameters) {
     laser_info.angle_increment = laser_parameters.angle_increment;
     laser_info.angle_max = laser_parameters.angle_max;
     laser_info.angle_min = laser_parameters.angle_min;
+}
+
+LaserScanInfo Controller::get_laser_info() {
+    return laser_info;
 }
 
 std::string Controller::to_upercase(std::string text) {
@@ -311,13 +315,20 @@ void Controller::laser_scan_callback (const sensor_msgs::msg::LaserScan::SharedP
     laser_info.angle_max = msg->angle_max;
     laser_info.angle_min = msg->angle_min;
 
-    std::vector<float> values = {1.0, 2.0, 3.0, 4.0, 5.0};
 
-    std::vector<float> sector = get_sector_range(3.13, 0.17, msg->ranges);
-    float mean = get_sector_range_mean(values);
-    RCLCPP_INFO_STREAM(this->get_logger(), "range:" << msg->ranges[0] << "-: " << mean);
+    float sector_width = 20.0 * (M_PI/180);
+
+    std::vector<float> sector_front = get_sector_range(M_PI, sector_width, msg->ranges);
+    std::vector<float> sector_left = get_sector_range(-M_PI/2, sector_width, msg->ranges);
+    std::vector<float> sector_right = get_sector_range(M_PI/2, sector_width, msg->ranges);
+    float mean_front = get_sector_range_mean(sector_front)* 2;
+    float mean_left = get_sector_range_mean(sector_left);
+    float mean_right = get_sector_range_mean(sector_right);
+    // RCLCPP_INFO_STREAM(this->get_logger(), "FRONT:" << mean_front << "LEFT: " << mean_left << "RIGHT: " << mean_right);
+    status_msg.obstacle_distance.front = mean_front;
+    status_msg.obstacle_distance.left = mean_left;
+    status_msg.obstacle_distance.right = mean_right;
 }
-
 // Mudar o nome dessa funcao
 void Controller::publish_command(const uint16_t &command){
     RCLCPP_INFO_STREAM(this->get_logger(), "Executing Command:" << moving_direction);
@@ -354,7 +365,7 @@ void Controller::status_timer_callback() {
     status_msg.linear_velocity = this->get_linear_velocity();
     status_msg.linear_distance = this->current_distance;
     status_msg.orientation = this->current_orientation;
-    status_msg.obstacle_distance.front = 2.0;
+    // status_msg.obstacle_distance.front = 2.
     status_pub->publish(status_msg);
 }
    
