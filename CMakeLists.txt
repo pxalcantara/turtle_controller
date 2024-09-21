@@ -23,20 +23,52 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/DirectionalDistance.msg"
   DEPENDENCIES  # Add packages that above messages depend on, in this case geometry_msgs for Sphere.msg
 )
+
 rosidl_get_typesupport_target(cpp_typesupport_target
   ${PROJECT_NAME} rosidl_typesupport_cpp)
 
 # Include Cpp "include" directory
-include_directories(include)
+include_directories(include/turtle_controller)
+set(HEADER_FILES include/turtle_controller/controller_server.hpp)
 
-add_executable(controller_server src/controller_server.cpp)
-ament_target_dependencies(controller_server rclcpp std_msgs keyboard_msgs geometry_msgs nav_msgs turtlesim tf2 sensor_msgs)
-target_link_libraries(controller_server "${cpp_typesupport_target}")
+# Cria uma biblioteca a partir da implementação
+add_library(controller_server_lib src/controller_server.cpp ${HEADER_FILES})
+ament_target_dependencies(controller_server_lib PUBLIC rclcpp std_msgs keyboard_msgs geometry_msgs nav_msgs turtlesim tf2 sensor_msgs)
 
+# Especifica as dependências da biblioteca (usando keyword signatures)
+target_link_libraries(controller_server_lib PUBLIC "${cpp_typesupport_target}")
+
+# Cria o executável
+add_executable(controller_server src/server_node.cpp)
+
+# Especifica as dependências do executável (usando keyword signatures)
+ament_target_dependencies(controller_server PUBLIC rclcpp std_msgs keyboard_msgs geometry_msgs nav_msgs turtlesim tf2 sensor_msgs)
+target_link_libraries(controller_server PUBLIC controller_server_lib)
+
+# Instala os diretórios de cabeçalhos
+install(
+  DIRECTORY include/turtle_controller
+  DESTINATION include
+)
+
+# Instala o executável
 install(TARGETS
-controller_server
+  controller_server
   DESTINATION lib/${PROJECT_NAME}
- )
+)
+
+# Instala a biblioteca
+install(
+  TARGETS controller_server_lib
+  EXPORT controller_server_lib
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin
+  INCLUDES DESTINATION include
+)
+
+ament_export_targets(controller_server_lib HAS_LIBRARY_TARGET)
+
 
 # Install Python modules
 # ament_python_install_package(${PROJECT_NAME})
