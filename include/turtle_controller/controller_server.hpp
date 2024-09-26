@@ -96,6 +96,8 @@ public:
     
     LaserScanInfo get_laser_info();
 
+    void show_commands(const std::vector<uint16_t>& commands);
+
 private:
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub;
     rclcpp::Publisher<turtle_controller::msg::RobotStatus>::SharedPtr status_pub;

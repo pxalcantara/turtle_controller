@@ -229,9 +229,10 @@ void Controller::command_callback(const keyboard_msgs::msg::Key::SharedPtr msg) 
     } else if (msg->code < 273 || msg->code > 276) {
         return;
     }
-    RCLCPP_INFO_STREAM(this->get_logger(), "Command:" << msg->code << "cmd_size " << commands.size());
+    // RCLCPP_INFO_STREAM(this->get_logger(), "Command:" << msg->code << "cmd_size " << commands.size());
     
     commands.push_back(msg->code);
+    show_commands(commands);
     
 }
 
@@ -365,7 +366,37 @@ void Controller::status_timer_callback() {
     status_msg.linear_velocity = this->get_linear_velocity();
     status_msg.linear_distance = this->current_distance;
     status_msg.orientation = this->current_orientation;
-    // status_msg.obstacle_distance.front = 2.
     status_pub->publish(status_msg);
 }
-   
+
+void Controller::show_commands(const std::vector<uint16_t>& commands) {
+    std::string cmd_formatted = "";
+
+    for (size_t i = 0; i < commands.size(); ++i) {
+    std::string cmd = "";
+        switch (commands[i])
+        {
+        case FRONT:
+            cmd = "Front";
+            break;
+        case BACK:
+            cmd = "Back";
+            break;
+        case RIGHT: 
+            cmd = "Right";
+            break;
+        case LEFT:
+            cmd = "Left";
+            break;
+        default:
+            break;
+        }
+
+        cmd_formatted += "[" + cmd + "]";
+
+        if (i != commands.size() - 1) {
+            cmd_formatted += ", ";
+        }
+    }
+    RCLCPP_INFO_STREAM(this->get_logger(), "Commands: " << cmd_formatted );
+}
