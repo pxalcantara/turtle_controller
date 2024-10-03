@@ -75,7 +75,14 @@ ament_export_targets(controller_server_lib HAS_LIBRARY_TARGET)
 # Install Python executables
 install(PROGRAMS
   scripts/controller_client.py
+  scripts/controller_sensor.py
   DESTINATION lib/${PROJECT_NAME}
+)
+
+# Install launch files.
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}/
 )
 
 ament_export_dependencies(rosidl_default_runtime)

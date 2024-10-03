@@ -244,7 +244,7 @@ void Controller::pose_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
             new_angular_setpoint(commands[cmd_position_reference]);
             first_cmd = false;
         }
-        RCLCPP_INFO_STREAM(this->get_logger(), "Orientation:" << current_orientation) ;
+        // RCLCPP_INFO_STREAM(this->get_logger(), "Orientation:" << current_orientation) ;
         
         double moving_distance = std::abs(current_distance - start_position);
         publish_command(commands[cmd_position_reference]);
@@ -263,32 +263,37 @@ void Controller::pose_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
 
         current_distance += calculate_distance(initial_pose.position.x, initial_pose.position.y, msg->pose.pose.position.x, msg->pose.pose.position.y);
         initial_pose = msg->pose.pose;
-        RCLCPP_INFO_STREAM(this->get_logger(), "Distancia:" << current_distance );
+        // RCLCPP_INFO_STREAM(this->get_logger(), "Distancia:" << current_distance );
     }
 
 }
 
 void Controller::robot_cmd_callback(const turtle_controller::msg::RobotCmd::SharedPtr msg) {
     // RCLCPP_INFO_STREAM(this->get_logger(), "Comando:" << to_upercase(msg->direction) );
-    if (!first_cmd) {
-        return;
-    } 
-
-    if (msg->velocity <= 0) {
-        RCLCPP_ERROR_STREAM(this->get_logger(), "Velocity should be greater than 0, velocity: " << msg->velocity );
-        return;
-    }
-    
     try {
         Direction new_direction = cmd_map.at(to_upercase(msg->direction));
         commands.clear();
+        RCLCPP_INFO_STREAM(this->get_logger(), "COMMANDO:" << new_direction);
         if (new_direction == STOP) {
             stop();
+            RCLCPP_INFO_STREAM(this->get_logger(), "parei" );
             return;
-        } else if ((new_direction == LEFT || new_direction == RIGHT) && msg->limit <= 0) {
+        }
+
+        if (!first_cmd) {
+            return;
+        } 
+
+        if (msg->velocity <= 0) {
+            RCLCPP_ERROR_STREAM(this->get_logger(), "Velocity should be greater than 0, velocity: " << msg->velocity );
+            return;
+        }    
+
+        if ((new_direction == LEFT || new_direction == RIGHT) && msg->limit <= 0) {
             RCLCPP_ERROR_STREAM(this->get_logger(), "For LEFT and RIGHT direction, limit can not be negative, limit:" << msg->limit);
             return;
         }
+        
         commands.push_back(new_direction);
         if (new_direction == FRONT || new_direction == BACK ) {
             set_linear_velocity(msg->velocity);
@@ -332,7 +337,7 @@ void Controller::laser_scan_callback (const sensor_msgs::msg::LaserScan::SharedP
 }
 // Mudar o nome dessa funcao
 void Controller::publish_command(const uint16_t &command){
-    RCLCPP_INFO_STREAM(this->get_logger(), "Executing Command:" << moving_direction);
+    // RCLCPP_INFO_STREAM(this->get_logger(), "Executing Command:" << moving_direction);
     switch (command)
     {
     case FRONT:
