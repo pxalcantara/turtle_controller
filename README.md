@@ -41,25 +41,27 @@ O `turtle_controller` utiliza uma interface simplificada de comandos através do
 ## Requisito
 
 Para funcionar corretamente, o `turtle_controller` necessita dos seguintes tópicos:
-
+- Entradas:
 1. __/odom__ (`nav_msgs/Odometry`): Tópico que fornece a odometria do robô.
-2. __/cmd_vel__ (`geometry_msgs/Twist`): Tópico que recebe comandos de velocidade para o controle do robô.
+2. __/scan__ (`sensor_msgs/LaserScan`): Tópico que fornece as medidas do Lidar.
+- Saídas:
+1. __/cmd_vel__ (`geometry_msgs/Twist`): Tópico que recebe comandos de velocidade para o controle do robô.
 
 ## Publicações
 
 O `turtle_controller` publica informações sobre o status do robô no tópico `/robot_status`, utilizando a mensagem customizada `RobotStatus`, com o seguinte formato:
 
 - **moving** (`bool`): Indica se o robô está se movendo (`true`) ou parado (`false`).
-- **linear_velocity** (`float32`): Informa a velocidade linear atual do robô.
-- **angular_velocity** (`float32`): Informa a velocidade angular atual do robô.
-- **linear_distance** (`float32`): Indica a distância linear total percorrida pelo robô desde o início do movimento.
+- **linear_velocity** (`float32`): Informa a velocidade linear atual do robô em m/s.
+- **angular_velocity** (`float32`): Informa a velocidade angular atual do robô em rad/s.
+- **linear_distance** (`float32`): Indica a distância linear total percorrida pelo robô desde o início do movimento em metros.
 - **orientation** (`float32`): Orientação atual do robô em radianos, variando de 0 a 2π.
-- **obstacle_distance** (`DirectionalDistance`): Mensagem com as distâncias para obstáculos nas direções ao redor do robô.
+- **obstacle_distance** (`DirectionalDistance`): Mensagem com as distâncias medidas pelo Lidar para obstáculos nas direções ao redor do robô.
 
-    - **front** (`float32`): Distância para um obstáculo à frente do robô.
-    - **left** (`float32`): Distância para um obstáculo à esquerda do robô.
-    - **right** (`float32`): Distância para um obstáculo à direita do robô.
-    - **back** (`float32`): Distância para um obstáculo atrás do robô (essa medição não foi implementada ainda).
+    - **front** (`float32`): Distância média para um obstáculo à frente do robô.
+    - **left** (`float32`): Distância média para um obstáculo à esquerda do robô.
+    - **right** (`float32`): Distância média para um obstáculo à direita do robô.
+    - **back** (`float32`): Distância média para um obstáculo atrás do robô (essa medição não foi implementada ainda).
 ### Exemplo de Mensagem Publicada no Tópico `/robot_status`
 ```yaml
 moving: true
