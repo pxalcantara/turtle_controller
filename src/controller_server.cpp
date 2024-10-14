@@ -226,6 +226,10 @@ void Controller::command_callback(const keyboard_msgs::msg::Key::SharedPtr msg) 
         }
         start_moving();
         return;
+    } else if (msg->code == 8) {
+        // RCLCPP_INFO_STREAM(this->get_logger(), "STOP COMMAND");
+        stop();
+        return;
     } else if (msg->code < 273 || msg->code > 276) {
         return;
     }
