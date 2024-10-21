@@ -74,7 +74,6 @@ ament_export_targets(controller_server_lib HAS_LIBRARY_TARGET)
 # ament_python_install_package(${PROJECT_NAME})
 # Install Python executables
 install(PROGRAMS
-  scripts/controller_client.py
   scripts/controller_base.py
   DESTINATION lib/${PROJECT_NAME}
 )
