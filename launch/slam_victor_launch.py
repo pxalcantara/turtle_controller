@@ -6,13 +6,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
-    # Caminho do launch file 'andino_one_robot.launch.py' no pacote 'andino_gz_classic'
-    turtle_world = os.path.join(
-        get_package_share_directory('nav2_bringup'),
-        'worlds', 
-        'world_only.model'
-    )
-
+    
     rviz_config = os.path.join(
                     get_package_share_directory('andino_slam'), 
                     'rviz', 
@@ -35,7 +29,7 @@ def generate_launch_description():
     andino_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(andino_gz_launch_path),
         launch_arguments={'rviz': 'true', 
-                            'world': turtle_world,
+                            'world': 'src/turtlebot3_simulations/turtlebot3_gazebo/worlds/turtlebot3_world.world',
                             'initial_pose_x': '-2.00',
                             'initial_pose_y': '-0.5',
                             'initial_pose_z': '0.01',
