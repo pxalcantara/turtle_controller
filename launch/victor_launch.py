@@ -16,7 +16,7 @@ def generate_launch_description():
     # IncludeLaunchDescription para o launch file 'andino_one_robot.launch.py' com parâmetro rviz false
     andino_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(andino_gz_launch_path),
-        launch_arguments={'rviz': 'false', 'world': '/home/aula-robotica/ws/src/gazebo_worlds/worlds/square_pass.world'}.items()
+        launch_arguments={'rviz': 'true', 'world': '/home/aula-robotica/ws/src/gazebo_worlds/worlds/square_pass.world'}.items()
     )
 
     # Node do pacote 'turtle_controller' com nome 'controller_server'
