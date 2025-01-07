@@ -6,20 +6,24 @@ import os
 from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
-    # Caminho do launch file 'andino_one_robot.launch.py' no pacote 'andino_gz_classic'
+
     andino_gz_launch_path = os.path.join(
         get_package_share_directory('andino_gz_classic'),
         'launch',
         'andino_one_robot.launch.py'
     )
 
-    # IncludeLaunchDescription para o launch file 'andino_one_robot.launch.py' com parâmetro rviz false
-    andino_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(andino_gz_launch_path),
-        launch_arguments={'rviz': 'true', 'world': 'src/gazebo_worlds/worlds/square_pass.world'}.items()
+    world_path = os.path.join(
+        get_package_share_directory('turtle_controller'),
+        'worlds',
+        'square_pass.world'
     )
 
-    # Node do pacote 'turtle_controller' com nome 'controller_server'
+    andino_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(andino_gz_launch_path),
+        launch_arguments={'rviz': 'true', 'world': world_path}.items()
+    )
+
     controller_server_node = Node(
         package='turtle_controller',
         executable='controller_server',
@@ -27,7 +31,6 @@ def generate_launch_description():
         output='screen'
     )
 
-    # Node do pacote 'keyboard' com nome 'keyboard'
     keyboard_node = Node(
         package='keyboard',
         executable='keyboard',
@@ -35,9 +38,16 @@ def generate_launch_description():
         output='screen'
     )
 
-    # Retorna o LaunchDescription com os três componentes
+    controler_action = Node(
+        package='turtle_controller',
+        executable='controller_scape.py',
+        name='controller_scape',
+        output='screen'
+    )
+
     return LaunchDescription([
         andino_launch,
         controller_server_node,
-        keyboard_node
+        keyboard_node,
+        controler_action
     ])

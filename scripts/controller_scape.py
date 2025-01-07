@@ -55,7 +55,7 @@ class ControllerClient(Node):
         self.cmd_msg.limit = limit
         self.cmd_pub.publish(self.cmd_msg)
 
-    def navigate_victor(self, msg, previous_direction=None):
+    def navigate_scape(self, msg, previous_direction=None):
         # EDITAR ESSA FUNÇÃO APENAS
 
         safe_distance = 0.2
@@ -98,7 +98,7 @@ class ControllerClient(Node):
         if (self.check_moving(msg)):
             return
         
-        self.prev = self.navigate_victor(msg, self.prev)
+        self.prev = self.navigate_scape(msg, self.prev)
             
 
 def main(args=None):

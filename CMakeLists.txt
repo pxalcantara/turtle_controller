@@ -75,13 +75,14 @@ ament_export_targets(controller_server_lib HAS_LIBRARY_TARGET)
 # Install Python executables
 install(PROGRAMS
   scripts/controller_base.py
-  scripts/controller_victor.py
+  scripts/controller_scape.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
 # Install launch files.
 install(DIRECTORY
   launch
+  worlds
   DESTINATION share/${PROJECT_NAME}/
 )
 
