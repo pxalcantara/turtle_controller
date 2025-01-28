@@ -32,7 +32,7 @@ Controller::Controller() : Node("move_controller") {
     move = false;
     current_distance = 0.0;
     angular_tolerance = 0.02;
-    angular_setpoints = {0, 1.57, 3.14, 4.71};
+    angular_setpoints = {0, 90, 180, 270};
     angular_setpoint_index = 0;
     first_cmd = true;
     linear_velocity = 0.2;
@@ -43,6 +43,10 @@ Controller::Controller() : Node("move_controller") {
 
 double Controller::calculate_distance(double initial_x, double initial_y, double final_x, double final_y) {
     return std::sqrt(std::pow(final_x - initial_x, 2) + std::pow(final_y - initial_y, 2));
+}
+
+float Controller::degree_to_rad(const float angle) {
+    return angle * M_PI / 180.0;
 }
 
 void Controller::next_command() {
@@ -154,7 +158,8 @@ void Controller::change_angular_setpoint(const bool clockwise) {
         angular_setpoint_index = 3;
     }
     RCLCPP_INFO_STREAM(this->get_logger(), "Setpoint:" << angular_setpoint_index << " / " << angular_setpoints[angular_setpoint_index]);
-    set_angular_setpoint(angular_setpoints[angular_setpoint_index]);
+    float setpoint_degree = degree_to_rad(angular_setpoints[angular_setpoint_index]);
+    set_angular_setpoint(setpoint_degree);
 }
 
 
@@ -244,11 +249,11 @@ void Controller::pose_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
         
     current_orientation = get_orientation(msg);
     if (move) {
-        if (first_cmd) {
-            new_angular_setpoint(commands[cmd_position_reference]);
-            first_cmd = false;
-        }
-        // RCLCPP_INFO_STREAM(this->get_logger(), "Orientation:" << current_orientation) ;
+        // if (first_cmd) {
+        //     new_angular_setpoint(commands[cmd_position_reference]);
+        //     first_cmd = false;
+        // }
+        RCLCPP_INFO_STREAM(this->get_logger(), "Orientation--:" << current_orientation) ;
         
         double moving_distance = std::abs(current_distance - start_position);
         publish_command(commands[cmd_position_reference]);
@@ -308,7 +313,7 @@ void Controller::robot_cmd_callback(const turtle_controller::msg::RobotCmd::Shar
             }
         } else {
             set_angular_velocity(msg->velocity);
-            set_angular_setpoint(msg->limit);
+            set_angular_setpoint(degree_to_rad(msg->limit));
         }
         start_moving();
     } catch(const std::exception& e) {

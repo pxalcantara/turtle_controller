@@ -82,6 +82,8 @@ public:
 
     float get_linear_setpoint();
 
+    float degree_to_rad(const float angle);
+
     // MAYBE PUT THESE FUCTIONS AS PRIVATE
     void change_angular_setpoint(const bool clockwise);
 
