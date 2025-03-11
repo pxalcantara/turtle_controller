@@ -38,7 +38,7 @@ Controller::Controller() : Node("move_controller") {
     linear_velocity = 0.2;
     angular_velocity = 0.2;
     linear_setpoint = 1;
-    angular_setpoint = angular_setpoints[1];
+    angular_setpoint = 0;
 };
 
 double Controller::calculate_distance(double initial_x, double initial_y, double final_x, double final_y) {
@@ -46,7 +46,21 @@ double Controller::calculate_distance(double initial_x, double initial_y, double
 }
 
 float Controller::degree_to_rad(const float angle) {
-    return angle * M_PI / 180.0;
+    return angle * (M_PI / 180.0);
+}
+
+float Controller::rad_to_degree(const float angle) {
+    return angle * (180/M_PI);
+}
+
+float Controller::normalize_angle(float angle) {
+    // angle = fmod(angle, 360.0);
+
+    if (angle < 0) {
+        angle += 360.0;
+    }
+
+    return angle;
 }
 
 void Controller::next_command() {
@@ -238,8 +252,42 @@ void Controller::command_callback(const keyboard_msgs::msg::Key::SharedPtr msg) 
     } else if (msg->code < 273 || msg->code > 276) {
         return;
     }
-    // RCLCPP_INFO_STREAM(this->get_logger(), "Command:" << msg->code << "cmd_size " << commands.size());
+
+    turtle_controller::msg::RobotCmd::SharedPtr robot_cmd = std::make_shared<turtle_controller::msg::RobotCmd>();
+    robot_cmd->direction = "Front";
+    robot_cmd->limit = 1.0;
+    robot_cmd->velocity = linear_velocity;
+    RCLCPP_INFO_STREAM(this->get_logger(), "Setpoint UPDATED:" << get_angular_setpoint() );
+
+    switch (msg->code)
+    {
+    case FRONT:
+        robot_cmd->direction = "Front";
+        robot_cmd->limit = 1.0;
+        robot_cmd->velocity = linear_velocity;
+        break;
+    case BACK:
+        robot_cmd->direction = "Back";
+        robot_cmd->limit = 1.0;
+        robot_cmd->velocity = linear_velocity;
+        break;
+    case RIGHT: 
+        robot_cmd->direction = "Right";
+        robot_cmd->limit = rad_to_degree(angular_setpoint) - 90;
+        robot_cmd->velocity = angular_velocity;
+        break;
+    case LEFT:
+        robot_cmd-> direction = "left";
+        robot_cmd-> limit = rad_to_degree(angular_setpoint) + 90;
+        robot_cmd-> velocity = angular_velocity;
+        break;
+    default:
+        break;
+    }
     
+    RCLCPP_INFO_STREAM(this->get_logger(), "Direction:" << robot_cmd->direction << "-limit " << robot_cmd->limit << "-velocity" << robot_cmd->velocity);
+    update_robot_setpoints(robot_cmd);
+
     commands.push_back(msg->code);
     show_commands(commands);
     
@@ -304,17 +352,18 @@ void Controller::robot_cmd_callback(const turtle_controller::msg::RobotCmd::Shar
         }
         
         commands.push_back(new_direction);
-        if (new_direction == FRONT || new_direction == BACK ) {
-            set_linear_velocity(msg->velocity);
-            if (msg->limit < 0 ) {
-                set_linear_setpoint(UNLIMITED);    
-            } else {
-                set_linear_setpoint(msg->limit);
-            }
-        } else {
-            set_angular_velocity(msg->velocity);
-            set_angular_setpoint(degree_to_rad(msg->limit));
-        }
+        // if (new_direction == FRONT || new_direction == BACK ) {
+        //     set_linear_velocity(msg->velocity);
+        //     if (msg->limit < 0 ) {
+        //         set_linear_setpoint(UNLIMITED);    
+        //     } else {
+        //         set_linear_setpoint(msg->limit);
+        //     }
+        // } else {
+        //     set_angular_velocity(msg->velocity);
+        //     set_angular_setpoint(degree_to_rad(msg->limit));
+        // }
+        update_robot_setpoints(msg);
         start_moving();
     } catch(const std::exception& e) {
         std::cerr << e.what() << '\n';
@@ -379,7 +428,7 @@ void Controller::status_timer_callback() {
     status_msg.angular_velocity = this->get_angular_velocity();
     status_msg.linear_velocity = this->get_linear_velocity();
     status_msg.linear_distance = this->current_distance;
-    status_msg.orientation = this->current_orientation;
+    status_msg.orientation = rad_to_degree(this->current_orientation);
     status_pub->publish(status_msg);
 }
 
@@ -413,4 +462,25 @@ void Controller::show_commands(const std::vector<uint16_t>& commands) {
         }
     }
     RCLCPP_INFO_STREAM(this->get_logger(), "Commands: " << cmd_formatted );
+}
+
+void Controller::update_robot_setpoints(const turtle_controller::msg::RobotCmd::SharedPtr &command) {
+    Direction new_direction = cmd_map.at(to_upercase(command->direction));
+    
+    if (new_direction == FRONT || new_direction == BACK ) {
+        set_linear_velocity(command->velocity);
+        if (command->limit < 0 ) {
+            set_linear_setpoint(UNLIMITED);    
+        } else {
+            set_linear_setpoint(command->limit);
+        }
+    } else {
+        set_angular_velocity(command->velocity);
+        float angle = normalize_angle(command->limit);
+        // set_angular_setpoint(normalize_angle(angle));
+        this->angular_setpoint = degree_to_rad(angle);
+    }
+    // RCLCPP_INFO_STREAM(this->get_logger(), "Setpoint UPDATED:" << get_angular_setpoint() );
+    // RCLCPP_INFO_STREAM(this->get_logger(), "Direction:" << robot_cmd->direction << "-limit " << robot_cmd->limit << "-velocity" << robot_cmd->velocity);
+
 }

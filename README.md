@@ -15,7 +15,7 @@ angular:
   z: 0.0"
 ```
 
-Podem ser simplificados para um comando de alto nível, que especifica apenas a direção, a velocidade e a distância ou ângulo limite. Isso facilita a interação e integração com o robô, tornando o controle mais intuitivo e eficiente.
+Podem ser simplificados para um comando de alto nível, que especifica apenas a direção, a velocidade e a distância ou ângulo limite. Isso facilita a interação e integração com o robô, tornando o controle mais intuitivo e simples.
 
 ## Estrutura do Pacote
 O `turtle_controller` utiliza uma interface simplificada de comandos através do tópico `/robot_cmd`, que recebe mensagens com o seguinte formato:
@@ -28,14 +28,14 @@ O `turtle_controller` utiliza uma interface simplificada de comandos através do
     - `"right"`: Girar para a direita.
     - `"stop"`: Parar o robô.
 
-- __velocity__ _(float)_: Define a velocidade do movimento. Dependendo do valor de direction:
+- __velocity__ _(float)_: Define a velocidade do movimento. Dependendo do valor de direction. Como a direção é definida pelo `direction`, a velocidade tem de ter sempre um **VALOR POSITIVO**
 
     - Para movimentos `front` e `back`, especifica a velocidade linear.
     - Para movimentos `left` e `right`, especifica a velocidade angular.
 
 - __limit__ _(float)_: Define o limite de distância ou ângulo para o movimento:
     - Nos movimentos lineares (`front` e `back`), um valor positivo indica a distância máxima a ser percorrida. O valor `-1` indica que o robô deve se mover indefinidamente.
-    - Nos movimentos angulares (`left` e `right`), especifica o ângulo de rotação em __radianos__.
+    - Nos movimentos angulares (`left` e `right`), especifica o ângulo de rotação em __graus__. O ângulo é um valor absoluto de 0 a 360 no sentido **ANTI-HORÁRIO**.
 
 
 ## Requisito
@@ -73,8 +73,13 @@ obstacle_distance:
   front: 0.5
   left: 1.2
   right: 0.8
-  back: 0.0  # Valor fixo indicando que a medição de distância para trás não foi implementada
+  back: -1.0  # Valor fixo indicando que a medição de distância para trás não foi implementada
 ```
 ## Aplicações
 
 O turtle_controller é ideal para cenários onde a simplicidade e a clareza dos comandos são cruciais, como em simulações de comportamento, ensino de robótica e controle de robôs de uso geral. A interface simplificada facilita os primeiros contados com o mundo da robótica além de possibilitar o ensino de programação apenas, onde a robótica atua como papel motivador e contexto de aplicação das técnicas, mas não é o objetivo principal do aprendizado. 
+
+## Utilização
+
+Para utilização desse pacotes, foram utilizados os pacotes abaixo para demonstração, por isso, é necessário que sejam clonado e inseridos no mesmo workspace do `turtle_controller`.
+

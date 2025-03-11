@@ -29,21 +29,28 @@ rosidl_get_typesupport_target(cpp_typesupport_target
 
 # Include Cpp "include" directory
 include_directories(include/turtle_controller)
-set(HEADER_FILES include/turtle_controller/controller_server.hpp)
+set(HEADER_FILES 
+  include/turtle_controller/controller_server.hpp
+  include/turtle_controller/keyboard_parser.hpp
+)
 
 # Cria uma biblioteca a partir da implementação
 add_library(controller_server_lib src/controller_server.cpp ${HEADER_FILES})
 ament_target_dependencies(controller_server_lib PUBLIC rclcpp std_msgs keyboard_msgs geometry_msgs nav_msgs turtlesim tf2 sensor_msgs)
-
-# Especifica as dependências da biblioteca (usando keyword signatures)
 target_link_libraries(controller_server_lib PUBLIC "${cpp_typesupport_target}")
+
+add_library(keyboard_parser_lib src/keyboard_parser.cpp ${HEADER_FILES})
+ament_target_dependencies(keyboard_parser_lib PUBLIC rclcpp std_msgs keyboard_msgs )
+target_link_libraries(keyboard_parser_lib PUBLIC "${cpp_typesupport_target}")
 
 # Cria o executável
 add_executable(controller_server src/server_node.cpp)
-
-# Especifica as dependências do executável (usando keyword signatures)
 ament_target_dependencies(controller_server PUBLIC rclcpp std_msgs keyboard_msgs geometry_msgs nav_msgs turtlesim tf2 sensor_msgs)
 target_link_libraries(controller_server PUBLIC controller_server_lib)
+
+add_executable(keyboard_parser src/keyboard_parser_node.cpp)
+ament_target_dependencies(keyboard_parser PUBLIC rclcpp std_msgs keyboard_msgs)
+target_link_libraries(keyboard_parser PUBLIC keyboard_parser_lib)
 
 # Instala os diretórios de cabeçalhos
 install(
@@ -54,21 +61,25 @@ install(
 # Instala o executável
 install(TARGETS
   controller_server
+  keyboard_parser
   DESTINATION lib/${PROJECT_NAME}
 )
 
 # Instala a biblioteca
 install(
   TARGETS controller_server_lib
-  EXPORT controller_server_lib
+  keyboard_parser_lib
+  EXPORT export_targets
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION bin
   INCLUDES DESTINATION include
 )
 
-ament_export_targets(controller_server_lib HAS_LIBRARY_TARGET)
 
+# ament_export_targets(controller_server_lib HAS_LIBRARY_TARGET)
+# ament_export_targets(keyboard_parser_lib HAS_LIBRARY_TARGET)
+ament_export_targets(export_targets HAS_LIBRARY_TARGET)
 
 # Install Python modules
 # ament_python_install_package(${PROJECT_NAME})

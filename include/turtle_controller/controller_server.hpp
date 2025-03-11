@@ -84,6 +84,10 @@ public:
 
     float degree_to_rad(const float angle);
 
+    float rad_to_degree(const float angle);
+
+    float normalize_angle(float angle);
+
     // MAYBE PUT THESE FUCTIONS AS PRIVATE
     void change_angular_setpoint(const bool clockwise);
 
@@ -116,6 +120,7 @@ private:
     nav_msgs::msg::Odometry pose_msg;
 
     std::vector<uint16_t> commands;
+    std::vector<turtle_controller::msg::RobotCmd> robot_commands;
     int cmd_position_reference;
     bool move;
     float linear_setpoint;
@@ -150,6 +155,8 @@ private:
     // Mudar o nome dessa funcao
     void publish_command(const uint16_t &command);
 
-    void status_timer_callback() ;    
+    void status_timer_callback() ;
+
+    void update_robot_setpoints(const turtle_controller::msg::RobotCmd::SharedPtr &command);
 
 };
