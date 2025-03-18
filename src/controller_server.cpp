@@ -243,7 +243,7 @@ void Controller::command_callback(const keyboard_msgs::msg::Key::SharedPtr msg) 
         if (commands.empty()) {
             return;
         }
-        start_moving();
+        // start_moving();
         return;
     } else if (msg->code == 8) {
         // RCLCPP_INFO_STREAM(this->get_logger(), "STOP COMMAND");
@@ -285,10 +285,10 @@ void Controller::command_callback(const keyboard_msgs::msg::Key::SharedPtr msg) 
         break;
     }
     
-    RCLCPP_INFO_STREAM(this->get_logger(), "Direction:" << robot_cmd->direction << "-limit " << robot_cmd->limit << "-velocity" << robot_cmd->velocity);
-    update_robot_setpoints(robot_cmd);
+    // RCLCPP_INFO_STREAM(this->get_logger(), "Direction:" << robot_cmd->direction << "-limit " << robot_cmd->limit << "-velocity" << robot_cmd->velocity);
+    // update_robot_setpoints(robot_cmd);
 
-    commands.push_back(msg->code);
+    // commands.push_back(msg->code);
     show_commands(commands);
     
 }
@@ -346,9 +346,9 @@ void Controller::robot_cmd_callback(const turtle_controller::msg::RobotCmd::Shar
             return;
         }    
 
-        if ((new_direction == LEFT || new_direction == RIGHT) && msg->limit <= 0) {
-            RCLCPP_ERROR_STREAM(this->get_logger(), "For LEFT and RIGHT direction, limit can not be negative, limit:" << msg->limit);
+        if ((new_direction == LEFT || new_direction == RIGHT) && msg->limit < 0) {
             return;
+            RCLCPP_ERROR_STREAM(this->get_logger(), "For LEFT and RIGHT direction, limit can not be negative, limit:" << msg->limit);
         }
         
         commands.push_back(new_direction);

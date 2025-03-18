@@ -13,7 +13,6 @@
 
 using std::placeholders::_1;
 
-
 enum Direction {
     FRONT = 273,
     BACK = 274,
@@ -31,25 +30,43 @@ static const std::map<std::string, Direction> cmd_map = {
     {"STOP", STOP}
 };
 
+float normalize_angle(float angle) {
+
+    if (angle < 0) {
+        angle += 360.0;
+    } else if (angle >= 360.0) {
+        angle -= 360.0;
+    }
+
+    return angle;
+}
+
 class KeyboardParser : public rclcpp::Node
 {
 public:
     KeyboardParser();
-
-    // void next_command();
+    
+    void stop();
 
     
 
 private:
+    void keyboard_command_cb(const keyboard_msgs::msg::Key::SharedPtr msg);
+    void status_cb(const turtle_controller::msg::RobotStatus::SharedPtr msg);
+    void publish_next_command();
+
     rclcpp::Subscription<keyboard_msgs::msg::Key>::SharedPtr keyboard_sub;
+    rclcpp::Subscription<turtle_controller::msg::RobotStatus>::SharedPtr status_sub;
     rclcpp::Publisher<turtle_controller::msg::RobotCmd>::SharedPtr command_pub;
 
     std::vector<turtle_controller::msg::RobotCmd> commands;
+    turtle_controller::msg::RobotCmd robot_cmd;
     int command_reference;
     float linear_velocity;
     float angular_velocity;
+    float angular_setpoint;
+    bool move;
 
-    void keyboard_command_cb(const keyboard_msgs::msg::Key::SharedPtr msg);
 
 };
 
