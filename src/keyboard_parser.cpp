@@ -19,9 +19,9 @@ KeyboardParser::KeyboardParser() : Node("keyboard_parser") {
 void KeyboardParser::keyboard_command_cb(const keyboard_msgs::msg::Key::SharedPtr msg) {
     // RCLCPP_INFO_STREAM(this->get_logger(), "Key preesed:" << msg->code);
     if (msg->code == 32 && move) {
-        if (commands.empty()) {
-            return;
-        }
+        // if (commands.empty()) {
+        //     return;
+        // }
         RCLCPP_INFO_STREAM(this->get_logger(), "STOP COMMAND");
         stop();
         return;
@@ -29,7 +29,6 @@ void KeyboardParser::keyboard_command_cb(const keyboard_msgs::msg::Key::SharedPt
         if (commands.empty()) {
             return;
         }
-        // start_moving();
         publish_next_command();
         move = true;
         return;
@@ -66,7 +65,7 @@ void KeyboardParser::keyboard_command_cb(const keyboard_msgs::msg::Key::SharedPt
         break;
     }
     
-    RCLCPP_INFO_STREAM(this->get_logger(), "Direction:" << robot_cmd.direction << " -limit " << robot_cmd.limit << " -velocity" << robot_cmd.velocity);
+    // RCLCPP_INFO_STREAM(this->get_logger(), "Direction:" << robot_cmd.direction << " -limit " << robot_cmd.limit << " -velocity" << robot_cmd.velocity);
     commands.push_back(robot_cmd);
 }
 
@@ -75,9 +74,12 @@ void KeyboardParser::status_cb(const turtle_controller::msg::RobotStatus::Shared
         return;
     }
 
+    // RCLCPP_INFO_STREAM(this->get_logger(), "Move:" << move << commands.size());
     if (!msg->moving && !commands.empty()) {
-        // RCLCPP_INFO_STREAM(this->get_logger(), "Orientation:" << msg->orientation);
         publish_next_command();
+    } else if (!msg->moving && commands.empty()) {
+        move = false;
+        // RCLCPP_INFO_STREAM(this->get_logger(), "Move:" << move << "size " <<  commands.size() << "moving  " <<  msg->moving);
     }
 }
 
@@ -86,10 +88,7 @@ void KeyboardParser::publish_next_command() {
         robot_cmd = commands.front();
         commands.erase(commands.begin());
         command_pub->publish(robot_cmd);
-        RCLCPP_INFO_STREAM(this->get_logger(), "Direction:" << robot_cmd.direction << " -limit " << robot_cmd.limit << " -velocity" << robot_cmd.velocity);
-        if (commands.empty()) {
-            move = false;
-        }
+        // RCLCPP_INFO_STREAM(this->get_logger(), "Direction:" << robot_cmd.direction << " -limit " << robot_cmd.limit << " -velocity" << robot_cmd.velocity);
     }
 }
 
@@ -98,7 +97,6 @@ void KeyboardParser::stop() {
     robot_cmd.limit = 0;
     robot_cmd.velocity = 0;
     command_pub->publish(robot_cmd);
-    angular_setpoint = commands.front().limit;
     commands.clear();
     move = false;
 }
