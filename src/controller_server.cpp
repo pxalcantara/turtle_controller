@@ -8,7 +8,7 @@ Controller::Controller() : Node("move_controller") {
     timer = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&Controller::status_timer_callback, this));
     // RCLCPP_INFO(this->get_logger(), "controller criado");
 
-    command_sub = this->create_subscription<keyboard_msgs::msg::Key>("keyup", 10, std::bind(&Controller::command_callback, this, _1));
+    // command_sub = this->create_subscription<keyboard_msgs::msg::Key>("keyup", 10, std::bind(&Controller::command_callback, this, _1));
     pose_sub = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(&Controller::pose_callback, this, _1));
     robot_cmd_sub = this->create_subscription<turtle_controller::msg::RobotCmd>("/robot_cmd", 10, std::bind(&Controller::robot_cmd_callback, this, _1));
     laser_scan_sub = this->create_subscription<sensor_msgs::msg::LaserScan>("/scan", 10, std::bind(&Controller::laser_scan_callback, this, _1));
@@ -32,9 +32,9 @@ Controller::Controller() : Node("move_controller") {
     move = false;
     current_distance = 0.0;
     angular_tolerance = 0.02;
-    angular_setpoints = {0, 90, 180, 270};
-    angular_setpoint_index = 0;
-    first_cmd = true;
+    // angular_setpoints = {0, 90, 180, 270};
+    // angular_setpoint_index = 0;
+    // first_cmd = true;
     linear_velocity = 0.2;
     angular_velocity = 0.2;
     linear_setpoint = 1;
@@ -63,30 +63,31 @@ float Controller::normalize_angle(float angle) {
     return angle;
 }
 
-void Controller::next_command() {
-    cmd_vel_msg.linear.x = 0.0;
-    cmd_vel_msg.angular.z = 0.0;
-    this->cmd_vel_pub->publish(cmd_vel_msg);
-    cmd_position_reference++;
-    RCLCPP_INFO_STREAM(this->get_logger(), "Next Command" );
-    rclcpp::sleep_for(std::chrono::seconds{2});
-    if (cmd_position_reference == static_cast<int>(commands.size())) {
-        stop();    
-        return;
-    }
-    start_position = current_distance;
-    first_cmd = true;
-}
+// void Controller::next_command() {
+//     cmd_vel_msg.linear.x = 0.0;
+//     cmd_vel_msg.angular.z = 0.0;
+//     this->cmd_vel_pub->publish(cmd_vel_msg);
+//     cmd_position_reference++;
+//     RCLCPP_INFO_STREAM(this->get_logger(), "Next Command" );
+//     if (cmd_position_reference == static_cast<int>(commands.size())) {
+//         stop();    
+//         rclcpp::sleep_for(std::chrono::seconds{2});
+//         return;
+//     }
+//     start_position = current_distance;
+//     first_cmd = true;
+// }
 
 void Controller::stop () {
     move = false;
-    first_cmd = true;
+    // first_cmd = true;
     cmd_position_reference = 0;
     commands.clear();
     cmd_vel_msg.linear.x = 0.0;
     cmd_vel_msg.angular.z = 0.0;
     this->cmd_vel_pub->publish(cmd_vel_msg);
     RCLCPP_INFO_STREAM(this->get_logger(), "Stooping" );
+    rclcpp::sleep_for(std::chrono::seconds{2});
 }
 
 void Controller::move_forward(float speed) {
@@ -159,34 +160,34 @@ float Controller::get_linear_setpoint() {
 }
 
 // MAYBE PUT THESE FUCTIONS AS PRIVATE
-void Controller::change_angular_setpoint(const bool clockwise) {
-    if (clockwise) {
-        angular_setpoint_index +=1;
-    } else {
-        angular_setpoint_index -=1;
-    }
+// void Controller::change_angular_setpoint(const bool clockwise) {
+//     if (clockwise) {
+//         angular_setpoint_index +=1;
+//     } else {
+//         angular_setpoint_index -=1;
+//     }
 
-    if (angular_setpoint_index > 3) {
-        angular_setpoint_index = 0;
-    } else if (angular_setpoint_index < 0) {
-        angular_setpoint_index = 3;
-    }
-    RCLCPP_INFO_STREAM(this->get_logger(), "Setpoint:" << angular_setpoint_index << " / " << angular_setpoints[angular_setpoint_index]);
-    float setpoint_degree = degree_to_rad(angular_setpoints[angular_setpoint_index]);
-    set_angular_setpoint(setpoint_degree);
-}
+//     if (angular_setpoint_index > 3) {
+//         angular_setpoint_index = 0;
+//     } else if (angular_setpoint_index < 0) {
+//         angular_setpoint_index = 3;
+//     }
+//     RCLCPP_INFO_STREAM(this->get_logger(), "Setpoint:" << angular_setpoint_index << " / " << angular_setpoints[angular_setpoint_index]);
+//     float setpoint_degree = degree_to_rad(angular_setpoints[angular_setpoint_index]);
+//     set_angular_setpoint(setpoint_degree);
+// }
 
 
-void Controller::new_angular_setpoint (const uint16_t &command) {
-    if (command != 275 && command != 276) {
-        return;
-    } else if (command == 275) {
-        change_angular_setpoint(false);
-    } else if (command == 276) {
-        change_angular_setpoint(true);
-    }
-    return;
-}
+// void Controller::new_angular_setpoint (const uint16_t &command) {
+//     if (command != 275 && command != 276) {
+//         return;
+//     } else if (command == 275) {
+//         change_angular_setpoint(false);
+//     } else if (command == 276) {
+//         change_angular_setpoint(true);
+//     }
+//     return;
+// }
 
     // center_position and sector_width in radians
 std::vector<float> Controller::get_sector_range(const float sector_center_position, const float sector_width, const std::vector<float>& range) {
@@ -237,61 +238,61 @@ void Controller::start_moving() {
 
 
 
-void Controller::command_callback(const keyboard_msgs::msg::Key::SharedPtr msg) {
-    // RCLCPP_INFO(this->get_logger(), std::to_string(msg->code).c_str());
-    if (msg->code == 13) {
-        if (commands.empty()) {
-            return;
-        }
-        // start_moving();
-        return;
-    } else if (msg->code == 8) {
-        // RCLCPP_INFO_STREAM(this->get_logger(), "STOP COMMAND");
-        stop();
-        return;
-    } else if (msg->code < 273 || msg->code > 276) {
-        return;
-    }
+// void Controller::command_callback(const keyboard_msgs::msg::Key::SharedPtr msg) {
+//     // RCLCPP_INFO(this->get_logger(), std::to_string(msg->code).c_str());
+//     if (msg->code == 13) {
+//         if (commands.empty()) {
+//             return;
+//         }
+//         // start_moving();
+//         return;
+//     } else if (msg->code == 8) {
+//         // RCLCPP_INFO_STREAM(this->get_logger(), "STOP COMMAND");
+//         stop();
+//         return;
+//     } else if (msg->code < 273 || msg->code > 276) {
+//         return;
+//     }
 
-    turtle_controller::msg::RobotCmd::SharedPtr robot_cmd = std::make_shared<turtle_controller::msg::RobotCmd>();
-    robot_cmd->direction = "Front";
-    robot_cmd->limit = 1.0;
-    robot_cmd->velocity = linear_velocity;
-    RCLCPP_INFO_STREAM(this->get_logger(), "Setpoint UPDATED:" << get_angular_setpoint() );
+//     turtle_controller::msg::RobotCmd::SharedPtr robot_cmd = std::make_shared<turtle_controller::msg::RobotCmd>();
+//     robot_cmd->direction = "Front";
+//     robot_cmd->limit = 1.0;
+//     robot_cmd->velocity = linear_velocity;
+//     RCLCPP_INFO_STREAM(this->get_logger(), "Setpoint UPDATED:" << get_angular_setpoint() );
 
-    switch (msg->code)
-    {
-    case FRONT:
-        robot_cmd->direction = "Front";
-        robot_cmd->limit = 1.0;
-        robot_cmd->velocity = linear_velocity;
-        break;
-    case BACK:
-        robot_cmd->direction = "Back";
-        robot_cmd->limit = 1.0;
-        robot_cmd->velocity = linear_velocity;
-        break;
-    case RIGHT: 
-        robot_cmd->direction = "Right";
-        robot_cmd->limit = rad_to_degree(angular_setpoint) - 90;
-        robot_cmd->velocity = angular_velocity;
-        break;
-    case LEFT:
-        robot_cmd-> direction = "left";
-        robot_cmd-> limit = rad_to_degree(angular_setpoint) + 90;
-        robot_cmd-> velocity = angular_velocity;
-        break;
-    default:
-        break;
-    }
+//     switch (msg->code)
+//     {
+//     case FRONT:
+//         robot_cmd->direction = "Front";
+//         robot_cmd->limit = 1.0;
+//         robot_cmd->velocity = linear_velocity;
+//         break;
+//     case BACK:
+//         robot_cmd->direction = "Back";
+//         robot_cmd->limit = 1.0;
+//         robot_cmd->velocity = linear_velocity;
+//         break;
+//     case RIGHT: 
+//         robot_cmd->direction = "Right";
+//         robot_cmd->limit = rad_to_degree(angular_setpoint) - 90;
+//         robot_cmd->velocity = angular_velocity;
+//         break;
+//     case LEFT:
+//         robot_cmd-> direction = "left";
+//         robot_cmd-> limit = rad_to_degree(angular_setpoint) + 90;
+//         robot_cmd-> velocity = angular_velocity;
+//         break;
+//     default:
+//         break;
+//     }
     
-    // RCLCPP_INFO_STREAM(this->get_logger(), "Direction:" << robot_cmd->direction << "-limit " << robot_cmd->limit << "-velocity" << robot_cmd->velocity);
-    // update_robot_setpoints(robot_cmd);
+//     // RCLCPP_INFO_STREAM(this->get_logger(), "Direction:" << robot_cmd->direction << "-limit " << robot_cmd->limit << "-velocity" << robot_cmd->velocity);
+//     // update_robot_setpoints(robot_cmd);
 
-    // commands.push_back(msg->code);
-    show_commands(commands);
+//     // commands.push_back(msg->code);
+//     show_commands(commands);
     
-}
+// }
 
 void Controller::pose_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
         
@@ -301,19 +302,21 @@ void Controller::pose_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
         //     new_angular_setpoint(commands[cmd_position_reference]);
         //     first_cmd = false;
         // }
-        RCLCPP_INFO_STREAM(this->get_logger(), "Orientation--:" << current_orientation) ;
+        // RCLCPP_INFO_STREAM(this->get_logger(), "Orientation--:" << current_orientation) ;
         
         double moving_distance = std::abs(current_distance - start_position);
         publish_command(commands[cmd_position_reference]);
 
 
         if (moving_distance > this->linear_setpoint && (moving_direction == FRONT || moving_direction == BACK )) {
-            next_command();
+            // next_command();
+            stop();
             return;
         } else if ((moving_direction == RIGHT || moving_direction == LEFT )) {
             if (current_orientation >= (angular_setpoint - angular_tolerance) &&
                 current_orientation <= (angular_setpoint + angular_tolerance)) {
-                next_command();
+                // next_command();
+                stop();
                 return;    
             }
         }
@@ -329,7 +332,7 @@ void Controller::robot_cmd_callback(const turtle_controller::msg::RobotCmd::Shar
     // RCLCPP_INFO_STREAM(this->get_logger(), "Comando:" << to_upercase(msg->direction) );
     try {
         Direction new_direction = cmd_map.at(to_upercase(msg->direction));
-        commands.clear();
+        // commands.clear();
         RCLCPP_INFO_STREAM(this->get_logger(), "COMMANDO:" << new_direction);
         if (new_direction == STOP) {
             stop();
@@ -337,9 +340,9 @@ void Controller::robot_cmd_callback(const turtle_controller::msg::RobotCmd::Shar
             return;
         }
 
-        if (!first_cmd) {
-            return;
-        } 
+        // if (!first_cmd) {
+        //     return;
+        // } 
 
         if (msg->velocity <= 0) {
             RCLCPP_ERROR_STREAM(this->get_logger(), "Velocity should be greater than 0, velocity: " << msg->velocity );
@@ -399,22 +402,22 @@ void Controller::publish_command(const uint16_t &command){
     switch (command)
     {
     case FRONT:
-        this->control_msg.data = "Frente";
+        // this->control_msg.data = "Frente";
         moving_direction = FRONT;
         move_forward();
         break;
     case BACK:
-        this->control_msg.data = "Tras";
+        // this->control_msg.data = "Tras";
         moving_direction = BACK;
         move_forward(-0.2);
         break;
     case RIGHT: 
-        this->control_msg.data = "Direita";
+        // this->control_msg.data = "Direita";
         moving_direction = RIGHT;
         rotate(-0.2);
         break;
     case LEFT:
-        this->control_msg.data = "Esquerda";
+        // this->control_msg.data = "Esquerda";
         moving_direction = LEFT;
         rotate();
         break;
@@ -470,7 +473,7 @@ void Controller::update_robot_setpoints(const turtle_controller::msg::RobotCmd::
     if (new_direction == FRONT || new_direction == BACK ) {
         set_linear_velocity(command->velocity);
         if (command->limit < 0 ) {
-            set_linear_setpoint(UNLIMITED);    
+            set_linear_setpoint(UNLIMITED);
         } else {
             set_linear_setpoint(command->limit);
         }

@@ -52,7 +52,7 @@ public:
 
     double calculate_distance(double initial_x, double initial_y, double final_x, double final_y);
 
-    void next_command();
+    // void next_command();
     
     void stop(); 
 
@@ -107,7 +107,7 @@ public:
 private:
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub;
     rclcpp::Publisher<turtle_controller::msg::RobotStatus>::SharedPtr status_pub;
-    rclcpp::Subscription<keyboard_msgs::msg::Key>::SharedPtr command_sub;
+    // rclcpp::Subscription<keyboard_msgs::msg::Key>::SharedPtr command_sub;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr pose_sub;
     rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr laser_scan_sub;
     rclcpp::Subscription<turtle_controller::msg::RobotCmd>::SharedPtr robot_cmd_sub;
@@ -130,9 +130,9 @@ private:
     double start_orientation;
     double current_orientation;
     float angular_setpoint;
-    std::vector<float> angular_setpoints;
-    int angular_setpoint_index;
-    bool first_cmd;
+    // std::vector<float> angular_setpoints;
+    // int angular_setpoint_index;
+    // bool first_cmd;
     Direction moving_direction;
     float linear_velocity;
     float angular_velocity;
@@ -144,7 +144,7 @@ private:
 
     void start_moving();
 
-    void command_callback(const keyboard_msgs::msg::Key::SharedPtr msg);
+    // void command_callback(const keyboard_msgs::msg::Key::SharedPtr msg);
 
     void pose_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
 
