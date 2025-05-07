@@ -62,6 +62,7 @@ class ControllerClient(Node):
         front_dist = msg.obstacle_distance.front
         left_dist = msg.obstacle_distance.left
         right_dist = msg.obstacle_distance.right
+        direction = msg.orientation
 
         max_distance = max(front_dist, left_dist, right_dist)
         self.get_logger().info(f"max: {max_distance}")
@@ -69,8 +70,7 @@ class ControllerClient(Node):
         if front_dist < safe_distance and left_dist < safe_distance and right_dist < safe_distance:
             self.move('stop', velocity=0.0, limit=0.0)
             self.get_logger().info("Cercado - girando 180 graus")
-            self.move('left', velocity=0.5, limit=1.57)  # Gira 90 graus
-            self.move('left', velocity=0.5, limit=1.57)  # Gira 90 graus
+            self.move('left', velocity=1.0, limit=direction+180.0)  # Gira 180 graus
 
         elif max_distance == front_dist and previous_direction != 'front':
             self.move('front', velocity=0.5, limit=0.2)
@@ -78,12 +78,12 @@ class ControllerClient(Node):
             return 'front'
 
         elif max_distance == left_dist and previous_direction != 'left':
-            self.move('left', velocity=0.5, limit=1.57)
+            self.move('left', velocity=1.0, limit=direction+90.0)
             self.get_logger().info("Left")
             return 'left'
 
         elif max_distance == right_dist and previous_direction != 'right':
-            self.move('right', velocity=0.5, limit=1.57)
+            self.move('right', velocity=1.0, limit=direction-90.0)
             self.get_logger().info("Right")
             return 'right'
 
