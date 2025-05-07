@@ -45,9 +45,18 @@ def generate_launch_description():
         output='screen'
     )
 
+    # Node do pacote 'turtle_controller' com nome 'keyboard_parser'
+    key_parser = Node(
+        package='turtle_controller',
+        executable='keyboard_parser',
+        name='keyboard_parser',
+        output='screen'
+    )
+
     return LaunchDescription([
         andino_launch,
         controller_server_node,
         keyboard_node,
-        controler_action
+        controler_action,
+        key_parser
     ])
