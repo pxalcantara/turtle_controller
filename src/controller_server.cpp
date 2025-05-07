@@ -54,7 +54,7 @@ float Controller::rad_to_degree(const float angle) {
 }
 
 float Controller::normalize_angle(float angle) {
-    // angle = fmod(angle, 360.0);
+    angle = fmod(angle, 360.0);
 
     if (angle < 0) {
         angle += 360.0;
